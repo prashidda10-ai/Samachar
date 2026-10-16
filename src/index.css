@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .font-khand {
+    font-family: 'Khand', sans-serif;
+  }
+  .font-mukta {
+    font-family: 'Mukta', sans-serif;
+  }
+  .font-noto {
+    font-family: 'Noto Sans Devanagari', sans-serif;
+  }
+  .font-rozha {
+    font-family: 'Rozha One', serif;
+  }
+  .font-yatra {
+    font-family: 'Yatra One', cursive;
+  }
+  .font-outfit {
+    font-family: 'Outfit', sans-serif;
+  }
+  .font-rajdhani {
+    font-family: 'Rajdhani', sans-serif;
+  }
+  .font-modak {
+    font-family: 'Modak', cursive;
+  }
+  .font-kalam {
+    font-family: 'Kalam', cursive;
+  }
+  .font-biryani {
+    font-family: 'Biryani', sans-serif;
+  }
+  .font-notoserif {
+    font-family: 'Noto Serif Devanagari', serif;
+  }
+  .font-gotu {
+    font-family: 'Gotu', sans-serif;
+  }
+  .font-sarala {
+    font-family: 'Sarala', sans-serif;
+  }
+  .font-bebas {
+    font-family: 'Bebas Neue', sans-serif;
+  }
+  .font-anton {
+    font-family: 'Anton', sans-serif;
+  }
+  .font-montserrat {
+    font-family: 'Montserrat', sans-serif;
+  }
+  .font-teko {
+    font-family: 'Teko', sans-serif;
+  }
+  .font-poppins {
+    font-family: 'Poppins', sans-serif;
+  }
+  .font-saira {
+    font-family: 'Saira Semi Condensed', sans-serif;
+  }
+  .font-changa {
+    font-family: 'Changa One', cursive;
+  }
+  .font-hind {
+    font-family: 'Hind', sans-serif;
+  }
+  .font-martel {
+    font-family: 'Martel', serif;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Samachar Maker",
+  "description": "Viral Nepali news card and video template editor with custom fonts, logos, high-definition export, and offline support. Developed by Shubest Lab.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
