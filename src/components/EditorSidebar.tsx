@@ -36,15 +36,17 @@ interface EditorSidebarProps {
   onChange: (updated: NewsProject) => void;
   onApplyTemplate: (styleKey: string) => void;
   language: Language;
+  onOpenAI?: () => void;
 }
 
 export const EditorSidebar: React.FC<EditorSidebarProps> = ({
   project,
   onChange,
   onApplyTemplate,
-  language
+  language,
+  onOpenAI
 }) => {
-  const t = TRANSLATIONS[language];
+  const t = TRANSLATIONS.en;
   const [activeTab, setActiveTab] = useState<'templates' | 'content' | 'media' | 'branding'>('templates');
   const [templateFilter, setTemplateFilter] = useState<'all' | 'viral' | 'breaking' | 'sports' | 'politics' | 'video'>('all');
   const [customHighlightColor, setCustomHighlightColor] = useState('#ff3b30');
@@ -59,12 +61,24 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
     onChange({ ...project, [key]: value, updatedAt: Date.now() });
   };
 
-  // Handle custom photo or video file upload
+  // Handle custom photo or video file upload preserving full native resolution
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, isSecondary: boolean = false) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const isVideo = file.type.startsWith('video/');
+    if (isVideo) {
+      // Direct object URL maintains 100% raw video stream quality with zero compression artifacts
+      const objectUrl = URL.createObjectURL(file);
+      onChange({
+        ...project,
+        mediaUrl: objectUrl,
+        mediaType: 'video',
+        updatedAt: Date.now()
+      });
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
@@ -74,7 +88,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
         onChange({
           ...project,
           mediaUrl: result,
-          mediaType: isVideo ? 'video' : 'image',
+          mediaType: 'image',
           updatedAt: Date.now()
         });
       }
@@ -96,14 +110,14 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
   // Insert color tags into headline or body text
   const insertColorTag = (field: 'headline' | 'bodyText', colorTag: string) => {
     const current = project[field];
-    const sampleWord = field === 'headline' ? 'नेपाल' : 'महत्वपूर्ण';
+    const sampleWord = field === 'headline' ? 'Nepal' : 'Important';
     updateField(field, `${current} {${colorTag}}${sampleWord}{/${colorTag}}`);
   };
 
   // Insert custom background pill highlight
   const insertBgHighlight = (field: 'headline' | 'bodyText', hexColor: string) => {
     const current = project[field];
-    updateField(field, `${current} {bg:${hexColor}}ताजा{/bg}`);
+    updateField(field, `${current} {bg:${hexColor}}Breaking{/bg}`);
   };
 
   // Clear all highlights
@@ -333,7 +347,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
           <div className="space-y-5">
             {/* Quick Visibility Switcher */}
             <div className="p-2.5 bg-slate-950/70 rounded-xl border border-slate-800 flex items-center justify-between text-xs">
-              <span className="font-semibold text-slate-300">देखाउने / लुकाउने:</span>
+              <span className="font-semibold text-slate-300">Visibility:</span>
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => updateField('showCategoryBadge', !project.showCategoryBadge)}
@@ -344,7 +358,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
                   }`}
                 >
                   {project.showCategoryBadge !== false ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                  ट्याग
+                  Tag
                 </button>
 
                 <button
@@ -356,7 +370,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
                   }`}
                 >
                   {project.showHeadline !== false ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                  हेडलाइन
+                  Headline
                 </button>
 
                 <button
@@ -368,7 +382,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
                   }`}
                 >
                   {project.showBodyText !== false ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                  विवरण
+                  Story
                 </button>
               </div>
             </div>
@@ -451,7 +465,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
                       updateField('subheadline', e.target.value);
                       updateField('showSubheadline', true);
                     }}
-                    placeholder="उदा: EXCLUSIVE INTERVIEW / विशेष खुलासा"
+                    placeholder="e.g. EXCLUSIVE INTERVIEW / BREAKING UPDATE"
                     className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-red-500 font-semibold"
                   />
                 </div>
@@ -460,7 +474,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
                   onClick={() => {
                     setShowSubheadlineInput(true);
                     updateField('showSubheadline', true);
-                    updateField('subheadline', 'विशेष खबर');
+                    updateField('subheadline', 'EXCLUSIVE');
                   }}
                   className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 py-1 font-semibold"
                 >
@@ -474,9 +488,22 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
             {project.showHeadline !== false && (
               <div className="pt-2 border-t border-slate-800 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                    {t.headlineHeading}
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                      {t.headlineHeading}
+                    </label>
+                    {onOpenAI && (
+                      <button
+                        onClick={onOpenAI}
+                        type="button"
+                        className="px-2 py-0.5 rounded-lg bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-[10px] font-bold text-red-400 flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
+                        title="Generate news headline with Gemini AI"
+                      >
+                        <Sparkles className="w-3 h-3 text-red-400 animate-pulse" />
+                        <span>AI Write</span>
+                      </button>
+                    )}
+                  </div>
                   <button
                     onClick={() => handleClearHighlights('headline')}
                     className="text-[11px] text-slate-400 hover:text-red-400 flex items-center gap-1"
@@ -490,30 +517,30 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
                 {/* 1-Click Color Highlighting Toolbar */}
                 <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-[10px] uppercase font-bold text-slate-400">रङ:</span>
+                    <span className="text-[10px] uppercase font-bold text-slate-400">Color:</span>
                     <button
                       onClick={() => insertColorTag('headline', 'red')}
                       className="px-2 py-0.5 rounded-md bg-red-600 text-white font-bold text-[11px] hover:scale-105 transition-transform"
                     >
-                      🔴 लाल
+                      🔴 Red
                     </button>
                     <button
                       onClick={() => insertColorTag('headline', 'yellow')}
                       className="px-2 py-0.5 rounded-md bg-yellow-400 text-black font-bold text-[11px] hover:scale-105 transition-transform"
                     >
-                      🟡 पहेँलो
+                      🟡 Yellow
                     </button>
                     <button
                       onClick={() => insertColorTag('headline', 'green')}
                       className="px-2 py-0.5 rounded-md bg-emerald-500 text-white font-bold text-[11px] hover:scale-105 transition-transform"
                     >
-                      🟢 हरियो
+                      🟢 Green
                     </button>
                     <button
                       onClick={() => insertColorTag('headline', 'blue')}
                       className="px-2 py-0.5 rounded-md bg-sky-500 text-white font-bold text-[11px] hover:scale-105 transition-transform"
                     >
-                      🔵 निलो
+                      🔵 Blue
                     </button>
                     <button
                       onClick={() => insertBgHighlight('headline', '#fef08a')}
@@ -525,7 +552,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
 
                   {/* Custom Color Picker */}
                   <div className="flex items-center gap-2 pt-1 border-t border-slate-800/80 text-xs">
-                    <span className="text-[10px] text-slate-400">कस्टम:</span>
+                    <span className="text-[10px] text-slate-400">Custom:</span>
                     <input
                       type="color"
                       value={customHighlightColor}
@@ -534,15 +561,15 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
                     />
                     <button
                       onClick={() => insertColorTag('headline', customHighlightColor)}
-                      className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-white text-[11px] font-semibold rounded"
+                      className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-white text-[11px] font-semibold rounded cursor-pointer"
                     >
-                      अक्षरमा लागु
+                      Apply to Text
                     </button>
                     <button
                       onClick={() => insertBgHighlight('headline', customHighlightColor)}
-                      className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-white text-[11px] font-semibold rounded"
+                      className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-white text-[11px] font-semibold rounded cursor-pointer"
                     >
-                      पिल (Bg) लागु
+                      Apply Pill (Bg)
                     </button>
                   </div>
                 </div>
@@ -606,13 +633,13 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
                       onClick={() => insertColorTag('bodyText', 'yellow')}
                       className="px-1.5 py-0.5 rounded bg-yellow-400 text-black font-bold text-[10px]"
                     >
-                      🟡 पहेँलो
+                      🟡 Yellow
                     </button>
                     <button
                       onClick={() => insertColorTag('bodyText', 'red')}
                       className="px-1.5 py-0.5 rounded bg-red-600 text-white font-bold text-[10px]"
                     >
-                      🔴 लाल
+                      🔴 Red
                     </button>
                   </div>
                 </div>
@@ -817,20 +844,20 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
               </label>
               <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1 bg-slate-950/50 rounded-xl border border-slate-800">
                 {[
-                  { id: 'font-khand', name: 'खाण्ड (Khand)', desc: 'Viral Impact' },
-                  { id: 'font-teko', name: 'टेको (Teko)', desc: 'Tall News' },
-                  { id: 'font-mukta', name: 'मुक्ता (Mukta)', desc: 'Standard Clean' },
-                  { id: 'font-noto', name: 'नाेटो (Noto)', desc: 'Modern Sans' },
-                  { id: 'font-rozha', name: 'रोझा (Rozha)', desc: 'Editorial Serif' },
-                  { id: 'font-poppins', name: 'पपिन्स (Poppins)', desc: 'Clean Modern' },
-                  { id: 'font-saira', name: 'साइरा (Saira)', desc: 'High Impact' },
-                  { id: 'font-changa', name: 'चाङ्गा (Changa)', desc: 'Heavy Pop' },
-                  { id: 'font-hind', name: 'हिन्द (Hind)', desc: 'Standard' },
-                  { id: 'font-martel', name: 'मार्तेल (Martel)', desc: 'Prestigious' },
-                  { id: 'font-rajdhani', name: 'राजधानी (Rajdhani)', desc: 'Tech Bold' },
-                  { id: 'font-yatra', name: 'यात्रा (Yatra)', desc: 'Retro Bold' },
-                  { id: 'font-bebas', name: 'बेबास (Bebas)', desc: 'English Impact' },
-                  { id: 'font-anton', name: 'एन्टन (Anton)', desc: 'Viral Heavy' }
+                  { id: 'font-khand', name: 'Khand (Bold Heavy)', desc: 'Viral Impact' },
+                  { id: 'font-teko', name: 'Teko (Condensed Tall)', desc: 'Tall Headline' },
+                  { id: 'font-mukta', name: 'Mukta (Standard Clean)', desc: 'Standard Editorial' },
+                  { id: 'font-noto', name: 'Noto Sans (Modern)', desc: 'Modern Clean' },
+                  { id: 'font-rozha', name: 'Rozha One (Serif)', desc: 'Editorial Serif' },
+                  { id: 'font-poppins', name: 'Poppins (Geometric)', desc: 'Clean Modern' },
+                  { id: 'font-saira', name: 'Saira Semi (Impact)', desc: 'High Impact' },
+                  { id: 'font-changa', name: 'Changa One (Heavy)', desc: 'Heavy Pop' },
+                  { id: 'font-hind', name: 'Hind (Clean Sans)', desc: 'Standard Devanagari' },
+                  { id: 'font-martel', name: 'Martel (Classic Serif)', desc: 'Prestigious' },
+                  { id: 'font-rajdhani', name: 'Rajdhani (Tech Bold)', desc: 'Tech Bold' },
+                  { id: 'font-yatra', name: 'Yatra One (Retro)', desc: 'Retro Bold' },
+                  { id: 'font-bebas', name: 'Bebas Neue (English)', desc: 'English Impact' },
+                  { id: 'font-anton', name: 'Anton (Viral Heavy)', desc: 'Viral Heavy' }
                 ].map((f) => (
                   <button
                     key={f.id}
@@ -1063,10 +1090,10 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
 
               <div className="grid grid-cols-2 gap-2 text-xs">
                 {[
-                  { id: 'bottom-dark', label: 'तल्लो कालो फेड' },
-                  { id: 'top-and-bottom', label: 'माथि र तल दुवै' },
-                  { id: 'full-vignette', label: 'भिग्नेट (Vignette)' },
-                  { id: 'none', label: 'हटाउनुहोस् (None)' }
+                  { id: 'bottom-dark', label: 'Bottom Dark Fade' },
+                  { id: 'top-and-bottom', label: 'Top & Bottom Fade' },
+                  { id: 'full-vignette', label: 'Vignette' },
+                  { id: 'none', label: 'None (Clear)' }
                 ].map((grad) => (
                   <button
                     key={grad.id}
@@ -1179,7 +1206,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
                     className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-red-500 font-semibold"
                   />
                   <div className="flex items-center gap-2 pt-1 text-xs text-slate-400">
-                    <span>डट रङ:</span>
+                    <span>Dot Color:</span>
                     <input
                       type="color"
                       value={project.footerAccentColor || '#ef4444'}
@@ -1220,7 +1247,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
                             : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-750'
                         }`}
                       >
-                        बायाँ (Left)
+                        Left
                       </button>
                       <button
                         onClick={() => updateField('footerAlign', 'center')}
@@ -1230,7 +1257,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
                             : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-750'
                         }`}
                       >
-                        बिच (Center)
+                        Center
                       </button>
                       <button
                         onClick={() => updateField('footerAlign', 'right')}
@@ -1240,7 +1267,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
                             : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-750'
                         }`}
                       >
-                        दायाँ (Right)
+                        Right
                       </button>
                     </div>
 
@@ -1288,7 +1315,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
                     <div className="space-y-2 pt-1">
                       <div>
                         <div className="flex justify-between text-xs text-slate-300 mb-1">
-                          <span>{t.verticalOffset} (ठाडो Y)</span>
+                          <span>{t.verticalOffset}</span>
                           <span className="font-mono text-red-400 font-bold">{project.footerPosY || 0}px</span>
                         </div>
                         <input
@@ -1303,7 +1330,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
 
                       <div>
                         <div className="flex justify-between text-xs text-slate-300 mb-1">
-                          <span>{t.horizontalOffset} (तेर्सो X)</span>
+                          <span>{t.horizontalOffset}</span>
                           <span className="font-mono text-red-400 font-bold">{project.footerPosX || 0}px</span>
                         </div>
                         <input

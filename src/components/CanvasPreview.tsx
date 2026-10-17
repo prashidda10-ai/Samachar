@@ -238,8 +238,8 @@ export const CanvasPreview = forwardRef<HTMLDivElement, CanvasPreviewProps>(
                   <img
                     src={project.mediaUrl}
                     alt="Split Media 1"
-                    crossOrigin="anonymous"
-                    style={mediaFilterStyle}
+                    crossOrigin={project.mediaUrl?.startsWith('data:') || project.mediaUrl?.startsWith('blob:') ? undefined : 'anonymous'}
+                    style={{ ...mediaFilterStyle, imageRendering: 'auto' }}
                     className="w-full h-full object-cover pointer-events-none"
                   />
                 </div>
@@ -247,8 +247,8 @@ export const CanvasPreview = forwardRef<HTMLDivElement, CanvasPreviewProps>(
                   <img
                     src={project.secondaryMediaUrl}
                     alt="Split Media 2"
-                    crossOrigin="anonymous"
-                    style={mediaFilterStyle}
+                    crossOrigin={project.secondaryMediaUrl?.startsWith('data:') || project.secondaryMediaUrl?.startsWith('blob:') ? undefined : 'anonymous'}
+                    style={{ ...mediaFilterStyle, imageRendering: 'auto' }}
                     className="w-full h-full object-cover pointer-events-none"
                   />
                 </div>
@@ -258,8 +258,8 @@ export const CanvasPreview = forwardRef<HTMLDivElement, CanvasPreviewProps>(
               <img
                 src={project.mediaUrl}
                 alt="News Background"
-                crossOrigin="anonymous"
-                style={mediaFilterStyle}
+                crossOrigin={project.mediaUrl?.startsWith('data:') || project.mediaUrl?.startsWith('blob:') ? undefined : 'anonymous'}
+                style={{ ...mediaFilterStyle, imageRendering: 'auto' }}
                 className={`w-full h-full pointer-events-none ${
                   project.mediaFit === 'cover'
                     ? 'object-cover'
@@ -487,7 +487,7 @@ export const CanvasPreview = forwardRef<HTMLDivElement, CanvasPreviewProps>(
                 transform: `translate(${project.headlinePosX || 0}px, ${project.headlinePosY || 0}px)`,
                 transition: draggingElement === 'headline' ? 'none' : 'transform 0.12s ease'
               }}
-              title="Drag to move Headline / समातेर सार्नुहोस्"
+              title="Drag to move Headline"
             >
               <h2
                 className={`font-bold leading-tight mb-2.5 tracking-tight ${project.headlineFont} ${
@@ -512,7 +512,7 @@ export const CanvasPreview = forwardRef<HTMLDivElement, CanvasPreviewProps>(
               </h2>
               {/* Move Badge Indicator */}
               <span className="export-ignore absolute -top-5 left-2 opacity-0 group-hover:opacity-100 text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded flex items-center gap-1 transition-opacity pointer-events-none shadow">
-                <Move className="w-2.5 h-2.5" /> Headline Drag
+                <Move className="w-2.5 h-2.5" /> Move Headline
               </span>
             </div>
           )}
@@ -531,7 +531,7 @@ export const CanvasPreview = forwardRef<HTMLDivElement, CanvasPreviewProps>(
                 transform: `translate(${project.bodyPosX || 0}px, ${project.bodyPosY || 0}px)`,
                 transition: draggingElement === 'body' ? 'none' : 'transform 0.12s ease'
               }}
-              title="Drag to move Summary text / समातेर सार्नुहोस्"
+              title="Drag to move Summary text"
             >
               <div
                 className={`leading-relaxed tracking-normal font-medium ${project.bodyFont} ${

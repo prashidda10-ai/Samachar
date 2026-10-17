@@ -25,7 +25,7 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
   language = 'ne'
 }) => {
   const jsonInputRef = useRef<HTMLInputElement>(null);
-  const t = TRANSLATIONS[language];
+  const t = TRANSLATIONS.en;
 
   if (!isOpen) return null;
 
@@ -40,10 +40,10 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
           onImportProject(parsed);
           onClose();
         } else {
-          alert('अमान्य फाइल ढाँचा (Invalid Project File)');
+          alert('Invalid Project File. Please upload a valid Samachar Maker JSON file.');
         }
       } catch (err) {
-        alert('फाइल पढ्न सकिएन (Failed to read JSON)');
+        alert('Failed to read project JSON file.');
       }
     };
     reader.readAsText(file);
@@ -118,9 +118,9 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
               <div className="w-16 h-16 rounded-full bg-slate-800/80 flex items-center justify-center mx-auto mb-3 text-slate-500">
                 <FolderOpen className="w-8 h-8" />
               </div>
-              <p className="text-sm font-medium text-slate-300">हाल कुनै सुरक्षित प्रोजेक्ट छैन</p>
+              <p className="text-sm font-medium text-slate-300">No saved projects yet</p>
               <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                तपाईंले कुनै न्युज कार्ड तयार पारेपछि माथिको &quot;प्रोजेक्ट सुरक्षित गर्नुहोस्&quot; बटन थिचेर सुरक्षित गर्न सक्नुहुन्छ।
+                Design your news card and click &quot;Save&quot; to securely store your templates, custom positions, and fonts.
               </p>
             </div>
           ) : (
@@ -132,26 +132,42 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                     onSelectProject(item.data);
                     onClose();
                   }}
-                  className="group relative p-4 rounded-xl border border-slate-800 bg-slate-950/40 hover:bg-slate-800/40 hover:border-slate-700 transition-all cursor-pointer flex flex-col justify-between"
+                  className="group relative p-3.5 rounded-2xl border border-slate-800 bg-slate-950/60 hover:bg-slate-800/50 hover:border-red-500/50 transition-all cursor-pointer flex flex-col justify-between shadow-lg"
                 >
-                  <div>
-                    <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="space-y-2">
+                    {/* High Quality Snapshot Preview */}
+                    {item.previewUrl && (
+                      <div className="w-full h-36 rounded-xl overflow-hidden bg-slate-900 border border-slate-800 flex items-center justify-center relative group-hover:border-slate-700 transition-colors">
+                        <img
+                          src={item.previewUrl}
+                          alt={item.title}
+                          className="w-full h-full object-contain"
+                        />
+                        <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-black/70 text-white backdrop-blur-xs uppercase border border-white/20">
+                          {item.data.aspectRatio || '4:5'}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex items-start justify-between gap-2">
                       <h4 className="text-sm font-bold text-white group-hover:text-red-400 transition-colors line-clamp-1">
                         {item.title}
                       </h4>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 shrink-0 uppercase">
-                        {item.data.aspectRatio}
-                      </span>
+                      {!item.previewUrl && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 shrink-0 uppercase">
+                          {item.data.aspectRatio}
+                        </span>
+                      )}
                     </div>
 
                     <p className="text-xs text-slate-400 line-clamp-2 font-mukta">
-                      {item.data.headline || item.data.bodyText || 'Empty Project'}
+                      {item.data.headline || item.data.bodyText || 'News Card Template'}
                     </p>
                   </div>
 
                   <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-800/60 text-[11px] text-slate-500">
                     <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
+                      <Clock className="w-3 h-3 text-slate-400" />
                       {new Date(item.updatedAt).toLocaleDateString()}
                     </span>
 
@@ -167,7 +183,7 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                         title="Delete project"
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (confirm('के तपाईं यो प्रोजेक्ट मेटाउन चाहनुहुन्छ?')) {
+                          if (confirm('Are you sure you want to delete this saved project?')) {
                             onDeleteProject(item.id);
                           }
                         }}

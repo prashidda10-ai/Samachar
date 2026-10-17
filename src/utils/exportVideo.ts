@@ -1,4 +1,5 @@
-import { toCanvas } from 'html-to-image';
+import { domToCanvas } from 'modern-screenshot';
+import html2canvas from 'html2canvas';
 import confetti from 'canvas-confetti';
 
 export interface VideoExportOptions {
@@ -44,7 +45,6 @@ export async function exportElementAsVideo(
   const fps = options.fps || 25;
   const totalFrames = duration * fps;
 
-  // 1. Initial snapshot of the canvas layout using html-to-image
   if (typeof document !== 'undefined' && document.fonts?.ready) {
     try {
       await document.fonts.ready;
@@ -53,13 +53,24 @@ export async function exportElementAsVideo(
     }
   }
 
-  // Create base snapshot canvas
-  const snapshotCanvas = await toCanvas(element, {
-    pixelRatio: 1.5,
-    skipFonts: true,
-    cacheBust: false,
-    filter: (node: HTMLElement) => !node.classList?.contains('export-ignore')
-  });
+  // Create base snapshot canvas with modern-screenshot or html2canvas
+  let snapshotCanvas: HTMLCanvasElement;
+  try {
+    snapshotCanvas = await domToCanvas(element, {
+      scale: 2,
+      font: false as const,
+      filter: (node) => !(node instanceof HTMLElement && node.classList?.contains('export-ignore'))
+    });
+  } catch {
+    snapshotCanvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: null,
+      logging: false,
+      ignoreElements: (el) => el.classList.contains('export-ignore')
+    });
+  }
 
   const width = snapshotCanvas.width;
   const height = snapshotCanvas.height;
@@ -71,13 +82,13 @@ export async function exportElementAsVideo(
   const ctx = recordCanvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D context not available');
 
-  const { mimeType, extension } = getSupportedVideoMimeType();
+  const { mimeType } = getSupportedVideoMimeType();
 
   // Create stream from recordCanvas
   const stream = recordCanvas.captureStream(fps);
   const mediaRecorder = new MediaRecorder(stream, {
     mimeType: MediaRecorder.isTypeSupported(mimeType) ? mimeType : undefined,
-    videoBitsPerSecond: 6000000 // 6 Mbps high quality
+    videoBitsPerSecond: 8000000 // 8 Mbps high quality
   });
 
   const chunks: Blob[] = [];
@@ -93,7 +104,6 @@ export async function exportElementAsVideo(
         const finalBlob = new Blob(chunks, { type: mimeType });
         const videoUrl = URL.createObjectURL(finalBlob);
 
-        // Trigger celebration confetti
         try {
           confetti({
             particleCount: 60,
@@ -114,14 +124,13 @@ export async function exportElementAsVideo(
       reject(e);
     };
 
-    // Check if there is an active HTML5 video inside the element
     const sourceVideo = element.querySelector('video') as HTMLVideoElement | null;
     if (sourceVideo && !sourceVideo.paused) {
       sourceVideo.currentTime = 0;
       sourceVideo.play().catch(() => {});
     }
 
-    mediaRecorder.start(100); // 100ms timeslices
+    mediaRecorder.start(100);
 
     let currentFrame = 0;
     const intervalMs = 1000 / fps;
@@ -131,29 +140,25 @@ export async function exportElementAsVideo(
       const progress = Math.min(100, Math.round((currentFrame / totalFrames) * 100));
       options.onProgress?.(progress);
 
-      // Render frame onto recordCanvas
       ctx.clearRect(0, 0, width, height);
 
-      // Draw base card snapshot
-      // For rich video reel feel, apply subtle dynamic zoom or live frame
-      const scale = 1 + (currentFrame / totalFrames) * 0.025; // Subtle 2.5% cinematic zoom
+      // Draw base card snapshot with subtle cinematic zoom
+      const scale = 1 + (currentFrame / totalFrames) * 0.025;
       ctx.save();
       ctx.translate(width / 2, height / 2);
       ctx.scale(scale, scale);
       ctx.drawImage(snapshotCanvas, -width / 2, -height / 2, width, height);
       ctx.restore();
 
-      // If active video is playing, overlay current video frame directly
+      // If active video is playing, overlay live video frame
       if (sourceVideo && sourceVideo.readyState >= 2) {
         try {
-          // The background video renders with same aspect ratio
-          // snapshotCanvas already contains the static frame, but updating video gives live playback
           ctx.save();
           ctx.globalCompositeOperation = 'destination-over';
           ctx.drawImage(sourceVideo, 0, 0, width, height);
           ctx.restore();
         } catch {
-          // ignore video draw error
+          // ignore
         }
       }
 

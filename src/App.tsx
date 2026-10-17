@@ -10,6 +10,8 @@ import {
 } from './utils/storage';
 import { exportElementAsImage } from './utils/exportImage';
 import { exportElementAsVideo } from './utils/exportVideo';
+import { getCurrentUser, logoutUser, UserProfile } from './utils/auth';
+import { AIGeneratedNews } from './utils/aiNewsService';
 import { SplashScreen } from './components/SplashScreen';
 import { Header } from './components/Header';
 import { CanvasPreview } from './components/CanvasPreview';
@@ -17,7 +19,10 @@ import { EditorSidebar } from './components/EditorSidebar';
 import { ProjectsModal } from './components/ProjectsModal';
 import { ShareModal } from './components/ShareModal';
 import { ExportModal } from './components/ExportModal';
-import { Language, TRANSLATIONS } from './utils/translations';
+import { AuthModal } from './components/AuthModal';
+import { AINewsModal } from './components/AINewsModal';
+import { InstallModal } from './components/InstallModal';
+import { TRANSLATIONS } from './utils/translations';
 import {
   ZoomIn,
   ZoomOut,
@@ -31,22 +36,35 @@ import {
   Move,
   RotateCcw,
   Film,
-  Download
+  Download,
+  Sparkles,
+  DownloadCloud
 } from 'lucide-react';
 
 export default function App() {
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'editor' | 'preview'>('preview');
   const [project, setProject] = useState<NewsProject>(INITIAL_PROJECT);
   const [savedProjects, setSavedProjects] = useState<SavedProjectItem[]>([]);
   const [appTheme, setAppTheme] = useState<'dark' | 'light'>('dark');
   const [zoomLevel, setZoomLevel] = useState<number>(1);
-  const [language, setLanguage] = useState<Language>('ne');
+
+  // Authentication State
+  const [user, setUser] = useState<UserProfile | null>(() => getCurrentUser());
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authReason, setAuthReason] = useState<'save' | 'view' | 'general'>('general');
 
   // Modals
   const [isProjectsOpen, setIsProjectsOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isAIOpen, setIsAIOpen] = useState(false);
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [currentExportDataUrl, setCurrentExportDataUrl] = useState<string | null>(null);
+
+  // PWA Install state
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [canInstallPwa, setCanInstallPwa] = useState(true);
 
   // Quick Move Target for canvas dock
   const [quickMoveTarget, setQuickMoveTarget] = useState<'headline' | 'footer' | 'badge' | 'body' | 'media'>('headline');
@@ -55,27 +73,26 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
-  const t = TRANSLATIONS[language];
+  const t = TRANSLATIONS.en;
 
-  // Load initial draft, saved projects, and language
+  // Load initial draft and saved projects
   useEffect(() => {
     const draft = loadDraftFromStorage();
     if (draft) {
       setProject(draft);
     }
     setSavedProjects(getSavedProjects());
-    const storedLang = localStorage.getItem('samachar_maker_lang') as Language;
-    if (storedLang === 'ne' || storedLang === 'en') {
-      setLanguage(storedLang);
-    }
-  }, []);
 
-  const handleToggleLanguage = () => {
-    const nextLang: Language = language === 'ne' ? 'en' : 'ne';
-    setLanguage(nextLang);
-    localStorage.setItem('samachar_maker_lang', nextLang);
-    showToast(nextLang === 'ne' ? 'भाषा परिवर्तन भयो: नेपाली' : 'Language switched to: English');
-  };
+    // Listen for PWA beforeinstallprompt
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setCanInstallPwa(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+  }, []);
 
   // Autosave draft when project changes
   useEffect(() => {
@@ -87,6 +104,25 @@ export default function App() {
     setTimeout(() => {
       setToastMessage(null);
     }, 2800);
+  };
+
+  // PWA Installation Trigger
+  const handleInstallPwa = async () => {
+    if (deferredPrompt) {
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          setCanInstallPwa(false);
+          showToast('Thank you for installing Samachar Maker!');
+        }
+        setDeferredPrompt(null);
+      } catch {
+        setIsInstallModalOpen(true);
+      }
+    } else {
+      setIsInstallModalOpen(true);
+    }
   };
 
   // Handle template selection
@@ -101,49 +137,127 @@ export default function App() {
       updatedAt: Date.now()
     }));
 
-    showToast(t.templateAppliedToast);
+    showToast('Template applied successfully');
   };
 
-  // Handle manual project save
-  const handleSaveCurrentProject = () => {
-    const saved = saveProjectToStorage(project);
-    setSavedProjects(saved);
-    showToast(t.projectSavedToast);
+  // Handle manual project save (ACCOUNT REQUIRED)
+  const handleSaveCurrentProject = async () => {
+    if (!user) {
+      setAuthReason('save');
+      setIsAuthOpen(true);
+      return;
+    }
+
+    try {
+      // Capture crystal-clear high-res snapshot for exact WYSIWYG save fidelity
+      let previewUrl: string | undefined = undefined;
+      if (canvasRef.current) {
+        try {
+          previewUrl = await exportElementAsImage(canvasRef.current, {
+            format: 'png',
+            quality: 0.98,
+            pixelRatio: 2.5
+          });
+        } catch {
+          // fallback
+        }
+      }
+
+      const saved = saveProjectToStorage(project, previewUrl);
+      setSavedProjects(saved);
+      showToast('Project saved successfully to your Google account!');
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to save project');
+    }
+  };
+
+  // Handle open projects library (ACCOUNT REQUIRED)
+  const handleOpenProjects = () => {
+    if (!user) {
+      setAuthReason('view');
+      setIsAuthOpen(true);
+      return;
+    }
+    setIsProjectsOpen(true);
+  };
+
+  // Handle successful Google authentication
+  const handleAuthSuccess = (authenticatedUser: UserProfile) => {
+    setUser(authenticatedUser);
+    showToast(`Welcome back, ${authenticatedUser.name}!`);
+
+    if (authReason === 'save') {
+      setTimeout(() => handleSaveCurrentProject(), 350);
+    } else if (authReason === 'view') {
+      setTimeout(() => setIsProjectsOpen(true), 350);
+    }
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    logoutUser();
+    setUser(null);
+    showToast('Signed out of your Google account');
   };
 
   // Handle delete project from library
   const handleDeleteProject = (id: string) => {
     const updated = deleteProjectFromStorage(id);
     setSavedProjects(updated);
-    showToast(t.projectDeletedToast);
+    showToast('Project deleted');
   };
 
-  // Create clean new canvas
+  // Handle new blank project
   const handleNewProject = () => {
-    setProject({
+    const blank: NewsProject = {
       ...INITIAL_PROJECT,
-      id: `draft-${Date.now()}`,
-      title: language === 'ne' ? 'नयाँ समाचार कार्ड' : 'New News Card',
+      id: `proj-${Date.now()}`,
+      title: 'New News Card',
       updatedAt: Date.now()
-    });
-    showToast(t.newCanvasToast);
+    };
+    setProject(blank);
+    setIsProjectsOpen(false);
+    showToast('Created new news card');
   };
 
-  // Prepare image data url for share or export
-  const prepareExportImage = async (pixelRatio: number = 2, format: 'png' | 'jpeg' = 'png'): Promise<string> => {
-    if (!canvasRef.current) throw new Error('Canvas not found');
+  // Prepare high-res image export with WYSIWYG auto-save
+  const prepareExportImage = async (
+    pixelRatio: number = 2.5,
+    format: 'png' | 'jpeg' = 'png'
+  ): Promise<string> => {
+    if (!canvasRef.current) throw new Error('Canvas element not found');
     const dataUrl = await exportElementAsImage(canvasRef.current, {
       format,
-      quality: 0.98,
+      quality: 1.0,
       pixelRatio
     });
     setCurrentExportDataUrl(dataUrl);
+
+    // Auto-save the exact high quality snapshot so the project is saved identically as downloaded
+    try {
+      const updated = saveProjectToStorage(project, dataUrl);
+      setSavedProjects(updated);
+    } catch (e) {
+      console.warn('Auto-save on export note:', e);
+    }
+
     return dataUrl;
   };
 
-  // Video Reel MP4 export
+  // Video Reel MP4 export with high-res preview capture
   const handleExportVideo = async (durationSeconds: number, onProgress: (p: number) => void): Promise<string> => {
     if (!canvasRef.current) throw new Error('Canvas not found');
+
+    // Capture high quality thumbnail for project library
+    try {
+      const snap = await exportElementAsImage(canvasRef.current, { format: 'png', quality: 1.0, pixelRatio: 2 });
+      const updated = saveProjectToStorage(project, snap);
+      setSavedProjects(updated);
+    } catch {
+      // ignore
+    }
+
     return await exportElementAsVideo(canvasRef.current, {
       durationSeconds,
       fps: 25,
@@ -153,22 +267,36 @@ export default function App() {
 
   const handleOpenExport = async () => {
     try {
-      await prepareExportImage(2, 'png');
+      await prepareExportImage(2.5, 'png');
       setIsExportOpen(true);
     } catch (e) {
       console.error(e);
-      alert('तस्बिर प्रोसेसिङ गर्न सकिएन');
+      alert('Could not render image preview. Please try again.');
     }
   };
 
   const handleOpenShare = async () => {
     try {
-      await prepareExportImage(2, 'png');
+      await prepareExportImage(2.5, 'png');
       setIsShareOpen(true);
     } catch (e) {
       console.error(e);
-      alert('सेयरको लागि तस्बिर तयार गर्न सकिएन');
+      alert('Could not prepare image for sharing.');
     }
+  };
+
+  // Apply AI Generated News to Card
+  const handleApplyAINews = (news: AIGeneratedNews) => {
+    setProject((prev) => ({
+      ...prev,
+      headline: news.headline,
+      bodyText: news.bodyText,
+      categoryBadge: news.categoryBadge,
+      subheadline: news.subheadline || prev.subheadline,
+      showSubheadline: Boolean(news.subheadline),
+      updatedAt: Date.now()
+    }));
+    showToast('AI News content applied to card!');
   };
 
   // Quick nudge helper for canvas dock
@@ -213,56 +341,54 @@ export default function App() {
       {/* Cinematic Splash Screen */}
       {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
 
-      {/* Top Bar Header */}
+      {/* Top Bar Header with English UI, AI Tools, PWA install & Google Account */}
       <Header
         appTheme={appTheme}
-        onToggleTheme={() => setAppTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
-        language={language}
-        onToggleLanguage={handleToggleLanguage}
-        onOpenProjects={() => setIsProjectsOpen(true)}
+        onToggleTheme={() => setAppTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+        onOpenProjects={handleOpenProjects}
         onSaveCurrent={handleSaveCurrentProject}
         onOpenShare={handleOpenShare}
         onOpenExport={handleOpenExport}
         onReplaySplash={() => setShowSplash(true)}
+        onOpenAI={() => setIsAIOpen(true)}
+        onOpenAuth={() => {
+          setAuthReason('general');
+          setIsAuthOpen(true);
+        }}
+        onLogout={handleLogout}
+        user={user}
         savedCount={savedProjects.length}
+        canInstallPwa={canInstallPwa}
+        onInstallPwa={handleInstallPwa}
+        mobileTab={mobileTab}
+        onToggleMobileTab={setMobileTab}
       />
 
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed top-16 right-6 z-50 flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-xl shadow-xl shadow-emerald-600/20 animate-in slide-in-from-top-4 duration-300">
-          <CheckCircle className="w-4 h-4" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
-      {/* Main Studio Body: Editor Sidebar + Canvas Workspace */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
-        {/* Left: Editor Sidebar (Streamlined 4-Tab Layout) */}
-        <div className="w-full lg:w-[420px] xl:w-[460px] h-[48vh] lg:h-full shrink-0 order-2 lg:order-1 border-t lg:border-t-0 lg:border-r border-slate-800">
+      {/* Main Workspace: Desktop shows side-by-side, Mobile toggles between Editor & Preview */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Left Control Sidebar */}
+        <div className={`w-full md:w-[420px] lg:w-[460px] h-full shrink-0 z-10 shadow-xl overflow-hidden ${
+          mobileTab === 'editor' ? 'block' : 'hidden md:block'
+        }`}>
           <EditorSidebar
             project={project}
             onChange={setProject}
             onApplyTemplate={handleApplyTemplate}
-            language={language}
+            language="en"
+            onOpenAI={() => setIsAIOpen(true)}
           />
         </div>
 
-        {/* Right: Live Canvas Workspace */}
-        <div className={`flex-1 flex flex-col order-1 lg:order-2 overflow-hidden relative ${appTheme === 'dark' ? 'bg-slate-950/80' : 'bg-slate-200/60'}`}>
-          {/* Workspace Toolbar */}
-          <div className="h-10 px-4 border-b border-slate-800/80 flex items-center justify-between text-xs text-slate-400 bg-slate-900/40 select-none">
-            <div className="flex items-center gap-3">
-              <span className="font-semibold text-slate-200">
-                {TEMPLATES[project.templateStyle]?.name || 'Custom Card'}
-              </span>
-              <span className="text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
-                {project.aspectRatio === '4:5'
-                  ? '1080 × 1350 px (Feed)'
-                  : project.aspectRatio === '1:1'
-                  ? '1080 × 1080 px (Square)'
-                  : project.aspectRatio === '9:16'
-                  ? '1080 × 1920 px (Story/Reel)'
-                  : '1920 × 1080 px (Wide)'}
+        {/* Center Canvas Viewport */}
+        <div className={`flex-1 flex-col h-full bg-slate-900/60 overflow-hidden relative ${
+          mobileTab === 'preview' ? 'flex' : 'hidden md:flex'
+        }`}>
+          {/* Viewport Top Toolbar */}
+          <div className="h-10 border-b border-slate-800/80 bg-slate-950/40 px-4 flex items-center justify-between text-xs text-slate-400 select-none">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-slate-200">Live Editor Canvas</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20">
+                HD Preview
               </span>
             </div>
 
@@ -270,7 +396,7 @@ export default function App() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setZoomLevel((z) => Math.max(0.6, z - 0.1))}
-                className="p-1 hover:text-white transition-colors"
+                className="p-1 hover:text-white transition-colors cursor-pointer"
                 title="Zoom Out"
               >
                 <ZoomOut className="w-3.5 h-3.5" />
@@ -280,14 +406,14 @@ export default function App() {
               </span>
               <button
                 onClick={() => setZoomLevel((z) => Math.min(1.4, z + 0.1))}
-                className="p-1 hover:text-white transition-colors"
+                className="p-1 hover:text-white transition-colors cursor-pointer"
                 title="Zoom In"
               >
                 <ZoomIn className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => setZoomLevel(1)}
-                className="p-1 hover:text-white transition-colors ml-1"
+                className="p-1 hover:text-white transition-colors ml-1 cursor-pointer"
                 title="Reset Zoom"
               >
                 <Maximize2 className="w-3.5 h-3.5" />
@@ -297,12 +423,12 @@ export default function App() {
 
           {/* Canvas Scroll Area */}
           <div className="flex-1 overflow-auto flex flex-col items-center justify-center p-3 md:p-6">
-            {/* FLOATING QUICK ACTIONS BAR (Fast, responsive & premium) */}
+            {/* FLOATING QUICK ACTIONS BAR */}
             <div className="flex items-center justify-center gap-2 mb-3 z-20 flex-wrap">
               {/* Quick Media Upload */}
               <label className="cursor-pointer px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 text-xs font-bold text-white border border-slate-700/80 shadow-lg flex items-center gap-1.5 backdrop-blur-md transition-all active:scale-95">
                 <Upload className="w-3.5 h-3.5 text-red-400" />
-                <span>फोटो फेर्नुहोस्</span>
+                <span>Change Media</span>
                 <input
                   type="file"
                   accept="image/*,video/*"
@@ -318,6 +444,7 @@ export default function App() {
                           mediaUrl: reader.result as string,
                           mediaType: isVideo ? 'video' : 'image'
                         }));
+                        showToast(isVideo ? 'Video loaded with original high quality' : 'Photo loaded with original high quality');
                       };
                       reader.readAsDataURL(file);
                     }
@@ -331,7 +458,7 @@ export default function App() {
                   <button
                     key={ratio}
                     onClick={() => setProject((prev) => ({ ...prev, aspectRatio: ratio }))}
-                    className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
+                    className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
                       project.aspectRatio === ratio
                         ? 'bg-red-600 text-white shadow-sm'
                         : 'text-slate-400 hover:text-slate-200'
@@ -342,50 +469,59 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Quick Content Vertical Placement (Top / Center / Bottom) */}
+              {/* Quick Content Vertical Placement */}
               <div className="flex items-center p-0.5 bg-slate-900/90 rounded-full border border-slate-700/80 shadow-lg backdrop-blur-md">
                 <button
                   onClick={() => setProject((prev) => ({ ...prev, contentVerticalAlign: 'top', headlinePosY: 0, badgePosY: 0 }))}
-                  title="Move text to Top (माथि सार्नुहोस्)"
-                  className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1 ${
+                  title="Move text to Top"
+                  className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
                     project.contentVerticalAlign === 'top'
                       ? 'bg-red-600 text-white shadow-sm'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  <ArrowUp className="w-3.5 h-3.5" /> माथि
+                  <ArrowUp className="w-3.5 h-3.5" /> Top
                 </button>
                 <button
                   onClick={() => setProject((prev) => ({ ...prev, contentVerticalAlign: 'center', headlinePosY: 0, badgePosY: 0 }))}
-                  title="Center text (बिचमा राख्नुहोस्)"
-                  className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
+                  title="Center text"
+                  className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
                     project.contentVerticalAlign === 'center'
                       ? 'bg-red-600 text-white shadow-sm'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  बिच
+                  Center
                 </button>
                 <button
                   onClick={() => setProject((prev) => ({ ...prev, contentVerticalAlign: 'bottom', headlinePosY: 0, badgePosY: 0 }))}
-                  title="Move text to Bottom (तल सार्नुहोस्)"
-                  className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1 ${
+                  title="Move text to Bottom"
+                  className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
                     !project.contentVerticalAlign || project.contentVerticalAlign === 'bottom'
                       ? 'bg-red-600 text-white shadow-sm'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  <ArrowDown className="w-3.5 h-3.5" /> तल
+                  <ArrowDown className="w-3.5 h-3.5" /> Bottom
                 </button>
               </div>
 
-              {/* Quick MP4 & HD Export */}
+              {/* Quick AI Generator Launch */}
+              <button
+                onClick={() => setIsAIOpen(true)}
+                className="px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 text-xs font-bold text-red-400 border border-red-500/50 shadow-lg flex items-center gap-1.5 backdrop-blur-md transition-all active:scale-95 cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>AI Writer</span>
+              </button>
+
+              {/* Quick HD Export */}
               <button
                 onClick={handleOpenExport}
-                className="px-3 py-1.5 rounded-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-xs font-bold text-white shadow-lg shadow-red-600/30 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-xs font-bold text-white shadow-lg shadow-red-600/30 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
               >
                 <Film className="w-3.5 h-3.5" />
-                <span>MP4 / HD</span>
+                <span>Export HD</span>
               </button>
             </div>
 
@@ -410,7 +546,7 @@ export default function App() {
               <div className="flex items-center justify-between w-full px-1 text-[11px]">
                 <div className="flex items-center gap-1.5 font-bold text-slate-200">
                   <Move className="w-3.5 h-3.5 text-red-400" />
-                  <span>स्थान सार्ने पट्टी (Nudge & Move Tool):</span>
+                  <span>Move & Nudge Controls:</span>
                 </div>
                 <div className="text-red-400 font-mono text-[10px] font-bold">
                   {quickMoveTarget === 'headline' && `X: ${project.headlinePosX || 0}px · Y: ${project.headlinePosY || 0}px`}
@@ -424,11 +560,11 @@ export default function App() {
               {/* Target Selector */}
               <div className="grid grid-cols-5 gap-1 w-full text-[11px] font-semibold">
                 {[
-                  { id: 'headline', label: '📢 हेडलाइन' },
-                  { id: 'footer', label: '👤 युजरनेम' },
-                  { id: 'badge', label: '🏷️ ट्याग' },
-                  { id: 'body', label: '📝 विवरण' },
-                  { id: 'media', label: '🖼️ फोटो' }
+                  { id: 'headline', label: '📢 Headline' },
+                  { id: 'footer', label: '👤 Handle' },
+                  { id: 'badge', label: '🏷️ Tag' },
+                  { id: 'body', label: '📝 Story' },
+                  { id: 'media', label: '🖼️ Photo' }
                 ].map((item) => (
                   <button
                     key={item.id}
@@ -451,7 +587,7 @@ export default function App() {
                   className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 rounded-lg text-xs font-bold flex items-center gap-1 border border-slate-700 cursor-pointer transition-all"
                   title="Move Left 5px"
                 >
-                  <ArrowLeft className="w-3.5 h-3.5 text-red-400" /> बायाँ
+                  <ArrowLeft className="w-3.5 h-3.5 text-red-400" /> Left
                 </button>
 
                 <button
@@ -459,7 +595,7 @@ export default function App() {
                   className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 rounded-lg text-xs font-bold flex items-center gap-1 border border-slate-700 cursor-pointer transition-all"
                   title="Move Up 5px"
                 >
-                  <ArrowUp className="w-3.5 h-3.5 text-red-400" /> माथि
+                  <ArrowUp className="w-3.5 h-3.5 text-red-400" /> Up
                 </button>
 
                 <button
@@ -467,7 +603,7 @@ export default function App() {
                   className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 rounded-lg text-xs font-bold flex items-center gap-1 border border-slate-700 cursor-pointer transition-all"
                   title="Move Down 5px"
                 >
-                  <ArrowDown className="w-3.5 h-3.5 text-red-400" /> तल
+                  <ArrowDown className="w-3.5 h-3.5 text-red-400" /> Down
                 </button>
 
                 <button
@@ -475,7 +611,7 @@ export default function App() {
                   className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 rounded-lg text-xs font-bold flex items-center gap-1 border border-slate-700 cursor-pointer transition-all"
                   title="Move Right 5px"
                 >
-                  दायाँ <ArrowRight className="w-3.5 h-3.5 text-red-400" />
+                  Right <ArrowRight className="w-3.5 h-3.5 text-red-400" />
                 </button>
 
                 <button
@@ -483,20 +619,36 @@ export default function App() {
                   className="py-1 px-2.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all border border-slate-750"
                   title="Reset Position"
                 >
-                  <RotateCcw className="w-3 h-3 text-red-400" /> रिसेट
+                  <RotateCcw className="w-3 h-3 text-red-400" /> Reset
                 </button>
               </div>
             </div>
           </div>
 
           {/* Quick Helper Tip Bar */}
-          <div className="py-1 px-4 text-center text-[11px] text-slate-500 border-t border-slate-800/40 bg-slate-950/40 hidden md:block">
-            <span>{t.quickTip}</span>
+          <div className="py-1.5 px-4 text-center text-[11px] text-slate-400 border-t border-slate-800/60 bg-slate-950/60 hidden md:block">
+            <span>💡 Tip: Highlight words using <code className="text-red-400">{'{red}word{/red}'}</code>, <code className="text-yellow-400">{'{yellow}word{/yellow}'}</code> or drag elements directly on the canvas.</span>
           </div>
         </div>
       </div>
 
       {/* MODALS */}
+      {/* 1. Google Authentication Gate Modal */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        onSuccess={handleAuthSuccess}
+        reason={authReason}
+      />
+
+      {/* 2. AI News Journalist Modal */}
+      <AINewsModal
+        isOpen={isAIOpen}
+        onClose={() => setIsAIOpen(false)}
+        onApplyNews={handleApplyAINews}
+      />
+
+      {/* 3. Saved Projects Library Modal */}
       <ProjectsModal
         isOpen={isProjectsOpen}
         onClose={() => setIsProjectsOpen(false)}
@@ -505,17 +657,19 @@ export default function App() {
         onDeleteProject={handleDeleteProject}
         onNewProject={handleNewProject}
         onImportProject={(p) => setProject(p)}
-        language={language}
+        language="en"
       />
 
+      {/* 4. Social Media Share Modal */}
       <ShareModal
         isOpen={isShareOpen}
         onClose={() => setIsShareOpen(false)}
         project={project}
         imageDataUrl={currentExportDataUrl}
-        language={language}
+        language="en"
       />
 
+      {/* 5. HD & MP4 Reel Export Modal */}
       <ExportModal
         isOpen={isExportOpen}
         onClose={() => setIsExportOpen(false)}
@@ -523,8 +677,43 @@ export default function App() {
         onRegenerate={prepareExportImage}
         onExportVideo={handleExportVideo}
         projectTitle={project.title}
-        language={language}
+        language="en"
       />
+
+      {/* 6. PWA Web Install Guide Modal */}
+      <InstallModal
+        isOpen={isInstallModalOpen}
+        onClose={() => setIsInstallModalOpen(false)}
+        hasNativePrompt={Boolean(deferredPrompt)}
+        onNativeInstall={handleInstallPwa}
+      />
+
+      {/* Mobile Floating Mode Toggle */}
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 md:hidden flex items-center shadow-2xl">
+        {mobileTab === 'editor' ? (
+          <button
+            onClick={() => setMobileTab('preview')}
+            className="px-5 py-3 rounded-full bg-gradient-to-r from-red-600 to-rose-600 text-white font-extrabold text-xs shadow-2xl shadow-red-600/40 flex items-center gap-2 border border-white/25 active:scale-95 cursor-pointer transition-transform"
+          >
+            <span>👁️ View Live News Card Preview</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => setMobileTab('editor')}
+            className="px-5 py-3 rounded-full bg-slate-900/95 text-white font-extrabold text-xs shadow-2xl shadow-black/80 flex items-center gap-2 border border-red-500/50 active:scale-95 backdrop-blur-md cursor-pointer transition-transform"
+          >
+            <span>✏️ Open Editor Controls</span>
+          </button>
+        )}
+      </div>
+
+      {/* Feedback Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-16 md:bottom-5 right-5 z-50 bg-slate-900 border border-red-500/40 text-white px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-semibold animate-in slide-in-from-bottom-3">
+          <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
     </div>
   );
 }

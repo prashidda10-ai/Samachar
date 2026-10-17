@@ -1,66 +1,138 @@
-import { toPng, toJpeg, toBlob } from 'html-to-image';
+import { domToPng, domToJpeg, domToBlob } from 'modern-screenshot';
+import html2canvas from 'html2canvas';
 import confetti from 'canvas-confetti';
 
 export interface ExportOptions {
   format: 'png' | 'jpeg';
   quality: number; // 0.8 to 1.0
-  pixelRatio: number; // 2 or 3 for Ultra HD
+  pixelRatio: number; // 2 to 3 for Ultra HD
   fileName?: string;
+}
+
+/**
+ * Temporarily freezes active video frames into image elements
+ * so SVG foreignObject / canvas engines capture the background video cleanly
+ */
+function freezeVideoFramesForCapture(element: HTMLElement): () => void {
+  const cleanupFns: (() => void)[] = [];
+  const videos = element.querySelectorAll('video');
+
+  videos.forEach((video) => {
+    try {
+      if (video.videoWidth > 0 && video.videoHeight > 0) {
+        const offscreen = document.createElement('canvas');
+        offscreen.width = video.videoWidth;
+        offscreen.height = video.videoHeight;
+        const ctx = offscreen.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, offscreen.width, offscreen.height);
+          const frameData = offscreen.toDataURL('image/png', 1.0);
+
+          const tempImg = document.createElement('img');
+          tempImg.src = frameData;
+          tempImg.className = video.className;
+          tempImg.style.cssText = video.style.cssText;
+          tempImg.setAttribute('data-temp-freeze', 'true');
+
+          const origDisplay = video.style.display;
+          video.style.display = 'none';
+          video.parentElement?.insertBefore(tempImg, video);
+
+          cleanupFns.push(() => {
+            tempImg.remove();
+            video.style.display = origDisplay;
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Video frame freeze warning:', e);
+    }
+  });
+
+  return () => {
+    cleanupFns.forEach((fn) => fn());
+  };
 }
 
 export async function exportElementAsImage(
   element: HTMLElement,
-  options: ExportOptions = { format: 'png', quality: 0.95, pixelRatio: 2 }
+  options: ExportOptions = { format: 'png', quality: 1.0, pixelRatio: 2.5 }
 ): Promise<string> {
-  const pixelRatio = options.pixelRatio || 2;
+  const pixelRatio = options.pixelRatio || 2.5;
 
-  // Wait for web fonts to be completely ready in browser memory before capturing
+  // 1. Ensure all custom fonts are loaded in document memory
   if (typeof document !== 'undefined' && document.fonts?.ready) {
     try {
       await document.fonts.ready;
     } catch {
-      // ignore font loading wait error
+      // ignore
     }
   }
 
-  const config = {
-    pixelRatio,
-    quality: options.quality || 0.95,
-    cacheBust: false,
-    skipFonts: true, // Crucial: Prevents SecurityError on cross-origin Google Fonts stylesheets
-    filter: (node: HTMLElement) => {
-      // Exclude interactive guides, drag hints, audio controls or tooltips
-      if (node.classList?.contains('export-ignore')) {
-        return false;
-      }
-      return true;
-    }
-  };
+  // 2. Temporarily swap video elements for full-res frame images for foreignObject capture
+  const unfreeze = freezeVideoFramesForCapture(element);
 
-  let dataUrl = '';
   try {
-    if (options.format === 'jpeg') {
-      dataUrl = await toJpeg(element, config);
-    } else {
-      dataUrl = await toPng(element, config);
-    }
-  } catch (err) {
-    console.warn('Initial export with high-res options failed, retrying with fallback config:', err);
-    // Robust fallback without custom scaling
-    const fallbackConfig = {
-      pixelRatio: 1.5,
-      skipFonts: true,
-      cacheBust: false,
-      filter: (node: HTMLElement) => !node.classList?.contains('export-ignore')
+    // 3. Primary Engine: modern-screenshot with font: false to avoid cross-origin cssRules SecurityError
+    const config = {
+      scale: pixelRatio,
+      quality: options.quality || 1.0,
+      font: false as const, // Prevents SecurityError on Google Fonts cross-origin stylesheets
+      filter: (node: Node) => {
+        if (node instanceof HTMLElement && node.classList?.contains('export-ignore')) {
+          return false;
+        }
+        return true;
+      }
     };
+
     if (options.format === 'jpeg') {
-      dataUrl = await toJpeg(element, fallbackConfig);
+      const result = await domToJpeg(element, config);
+      if (result && result.length > 500) {
+        unfreeze();
+        triggerConfetti();
+        return result;
+      }
     } else {
-      dataUrl = await toPng(element, fallbackConfig);
+      const result = await domToPng(element, config);
+      if (result && result.length > 500) {
+        unfreeze();
+        triggerConfetti();
+        return result;
+      }
     }
+  } catch (modernErr) {
+    console.warn('modern-screenshot export encountered issue, falling back to html2canvas:', modernErr);
   }
 
-  // Trigger celebration confetti
+  // 4. Secondary Fallback Engine: html2canvas
+  try {
+    const canvas = await html2canvas(element, {
+      scale: pixelRatio,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: null,
+      logging: false,
+      ignoreElements: (el) => el.classList.contains('export-ignore')
+    });
+
+    unfreeze();
+    const mimeType = options.format === 'jpeg' ? 'image/jpeg' : 'image/png';
+    const dataUrl = canvas.toDataURL(mimeType, options.quality || 1.0);
+    if (dataUrl && dataUrl.length > 500) {
+      triggerConfetti();
+      return dataUrl;
+    }
+  } catch (h2cErr) {
+    unfreeze();
+    console.warn('html2canvas fallback failed:', h2cErr);
+  }
+
+  unfreeze();
+  throw new Error('Could not generate high-resolution image export');
+}
+
+function triggerConfetti() {
   try {
     confetti({
       particleCount: 50,
@@ -70,8 +142,6 @@ export async function exportElementAsImage(
   } catch {
     // ignore
   }
-
-  return dataUrl;
 }
 
 export function downloadDataUrl(dataUrl: string, fileName: string = 'samachar-maker-post.png') {
@@ -85,7 +155,7 @@ export function downloadDataUrl(dataUrl: string, fileName: string = 'samachar-ma
 
 export async function getElementAsBlob(
   element: HTMLElement,
-  options: { pixelRatio?: number } = { pixelRatio: 2 }
+  options: { pixelRatio?: number } = { pixelRatio: 2.5 }
 ): Promise<Blob | null> {
   if (typeof document !== 'undefined' && document.fonts?.ready) {
     try {
@@ -94,9 +164,20 @@ export async function getElementAsBlob(
       // ignore
     }
   }
-  return await toBlob(element, {
-    pixelRatio: options.pixelRatio || 2,
-    cacheBust: false,
-    skipFonts: true
-  });
+
+  const unfreeze = freezeVideoFramesForCapture(element);
+  try {
+    const blob = await domToBlob(element, {
+      scale: options.pixelRatio || 2.5,
+      font: false as const,
+      filter: (node) => !(node instanceof HTMLElement && node.classList?.contains('export-ignore'))
+    });
+    unfreeze();
+    return blob;
+  } catch {
+    unfreeze();
+    const dataUrl = await exportElementAsImage(element, { format: 'png', quality: 1.0, pixelRatio: options.pixelRatio || 2.5 });
+    const res = await fetch(dataUrl);
+    return await res.blob();
+  }
 }

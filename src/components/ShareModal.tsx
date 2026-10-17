@@ -20,7 +20,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 }) => {
   const [copiedCaption, setCopiedCaption] = useState(false);
   const [copiedImage, setCopiedImage] = useState(false);
-  const t = TRANSLATIONS[language];
+  const t = TRANSLATIONS.en;
 
   if (!isOpen) return null;
 
@@ -46,9 +46,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
       setCopiedImage(true);
       setTimeout(() => setCopiedImage(false), 2000);
     } catch (e) {
-      alert(language === 'ne' 
-        ? 'तपाईंको ब्राउजरले क्लिपबोर्डमा सिधै फोटो कपी गर्न अनुमति दिएन। कृपया डाउनलोड गर्नुहोस्।' 
-        : 'Browser clipboard image write not supported. Please download the image.');
+      alert('Browser clipboard image copy not supported. Please download the image directly.');
     }
   };
 
@@ -72,9 +70,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           url: window.location.href
         });
       } else {
-        alert(language === 'ne' 
-          ? 'Web Share API यो ब्राउजरमा उपलब्ध छैन। कृपया तलका सामाजिक सञ्जाल बटनहरू प्रयोग गर्नुहोस्।' 
-          : 'Web Share not supported in this browser. Please use the direct links below.');
+        alert('Web Share is not supported in this browser. Please use the direct links below.');
       }
     } catch (err) {
       console.log('Share canceled or failed', err);

@@ -30,7 +30,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
   const [currentUrl, setCurrentUrl] = useState<string | null>(imageDataUrl);
-  const t = TRANSLATIONS[language];
+  const t = TRANSLATIONS.en;
 
   if (!isOpen) return null;
 
@@ -43,7 +43,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       downloadDataUrl(url, fileName);
     } catch (e) {
       console.error('Export error:', e);
-      alert('डाउनलोड गर्न समस्या भयो। कृपया पुन: प्रयास गर्नुहोस्।');
+      alert('Failed to generate image. Please try again.');
     } finally {
       setIsExporting(false);
     }
@@ -61,7 +61,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       downloadVideoBlob(videoBlobUrl, fileName);
     } catch (e) {
       console.error('Video export error:', e);
-      alert('भिडियो एक्सपोर्ट गर्न समस्या भयो। कृपया पुन: प्रयास गर्नुहोस्।');
+      alert('Failed to export video reel. Please try again.');
     } finally {
       setIsExporting(false);
     }
