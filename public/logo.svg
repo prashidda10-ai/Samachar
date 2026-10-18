@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#dc2626" />
+      <stop offset="55%" stop-color="#e11d48" />
+      <stop offset="100%" stop-color="#991b1b" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="20" y1="20" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="50%" stop-color="#facc15" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+    <filter id="glow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <!-- Rounded Squircle App Icon Base -->
+  <rect x="4" y="4" width="112" height="112" rx="28" fill="url(#bgGrad)" />
+  <rect x="6" y="6" width="108" height="108" rx="26" stroke="#ffffff" stroke-opacity="0.22" stroke-width="2" />
+
+  <!-- Broadcast Signal Rings -->
+  <circle cx="92" cy="28" r="6" fill="url(#goldGrad)" />
+  <path d="M80 20 A18 18 0 0 1 100 40" stroke="url(#goldGrad)" stroke-width="3" stroke-linecap="round" opacity="0.85" />
+
+  <!-- Stylized News Card Frame & Lightning Bolt Mark -->
+  <g filter="url(#glow)">
+    <!-- Back News Card Layer -->
+    <rect x="24" y="24" width="58" height="68" rx="10" transform="rotate(-6 24 24)" fill="#ffffff" fill-opacity="0.2" />
+    <!-- Front News Card -->
+    <rect x="24" y="26" width="66" height="72" rx="12" fill="#09090b" stroke="#ffffff" stroke-width="3" />
+    <!-- Red Breaking Banner Pill -->
+    <rect x="33" y="37" width="32" height="9" rx="4.5" fill="#ef4444" />
+    <!-- Golden Headline Bars -->
+    <rect x="33" y="52" width="48" height="8" rx="4" fill="url(#goldGrad)" />
+    <rect x="33" y="65" width="38" height="7" rx="3.5" fill="#ffffff" />
+    <!-- Bottom Accent & SM Monogram Badge -->
+    <rect x="33" y="79" width="24" height="5" rx="2.5" fill="#94a3b8" />
+    <circle cx="77" cy="81" r="15" fill="url(#goldGrad)" stroke="#09090b" stroke-width="3" />
+    <path d="M79 72 L71 82 H77 L75 90 L83 80 H77 Z" fill="#09090b" />
+  </g>
+</svg>

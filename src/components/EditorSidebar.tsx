@@ -435,6 +435,39 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
                   placeholder={t.categoryPlaceholder}
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-red-500 font-medium"
                 />
+
+                {/* Tagline Size & 1-Line Lock Controls */}
+                <div className="flex items-center justify-between gap-2 pt-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateField('badgeSingleLine', project.badgeSingleLine === false ? true : false)
+                    }
+                    className={`px-2.5 py-1 rounded-lg font-bold text-[11px] border transition-all cursor-pointer ${
+                      project.badgeSingleLine !== false
+                        ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-300'
+                        : 'bg-slate-800 border-slate-700 text-slate-400'
+                    }`}
+                    title="Keep Tagline on a single line even when enlarged"
+                  >
+                    {project.badgeSingleLine !== false ? '✓ 1-Line Locked' : 'Allow Multi-Line'}
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400 text-[11px]">Tag Size</span>
+                    <input
+                      type="range"
+                      min="10"
+                      max="32"
+                      value={project.badgeSize || 14}
+                      onChange={(e) => updateField('badgeSize', Number(e.target.value))}
+                      className="w-20 accent-red-500"
+                    />
+                    <span className="text-slate-300 font-mono text-[11px] w-6">
+                      {project.badgeSize || 14}
+                    </span>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -582,26 +615,42 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
                   className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-red-500 leading-snug font-medium"
                 />
 
-                {/* Headline Controls: Alignment & Size */}
-                <div className="flex items-center justify-between text-xs pt-1">
+                {/* Headline Controls: Alignment, 1-Line Lock & Size */}
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1">
                   <div className="flex items-center gap-1">
                     <button
+                      type="button"
                       onClick={() => updateField('headlineAlign', 'left')}
-                      className={`p-1.5 rounded-lg ${project.headlineAlign === 'left' ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-300'}`}
+                      className={`p-1.5 rounded-lg cursor-pointer transition-all ${project.headlineAlign === 'left' ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-300'}`}
                     >
                       <AlignLeft className="w-3.5 h-3.5" />
                     </button>
                     <button
+                      type="button"
                       onClick={() => updateField('headlineAlign', 'center')}
-                      className={`p-1.5 rounded-lg ${project.headlineAlign === 'center' ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-300'}`}
+                      className={`p-1.5 rounded-lg cursor-pointer transition-all ${project.headlineAlign === 'center' ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-300'}`}
                     >
                       <AlignCenter className="w-3.5 h-3.5" />
                     </button>
                     <button
+                      type="button"
                       onClick={() => updateField('headlineAlign', 'right')}
-                      className={`p-1.5 rounded-lg ${project.headlineAlign === 'right' ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-300'}`}
+                      className={`p-1.5 rounded-lg cursor-pointer transition-all ${project.headlineAlign === 'right' ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-300'}`}
                     >
                       <AlignRight className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => updateField('headlineSingleLine', !project.headlineSingleLine)}
+                      className={`ml-1 px-2.5 py-1 rounded-lg font-bold text-[11px] border transition-all cursor-pointer ${
+                        project.headlineSingleLine
+                          ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-300 shadow-xs'
+                          : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-600'
+                      }`}
+                      title="Keep Headline on 1 single line without wrapping"
+                    >
+                      {project.headlineSingleLine ? '✓ 1-Line Locked' : '1-Line Lock'}
                     </button>
                   </div>
 
@@ -609,13 +658,13 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
                     <span className="text-slate-400">{t.fontSize}</span>
                     <input
                       type="range"
-                      min="22"
-                      max="62"
+                      min="14"
+                      max="64"
                       value={project.headlineSize}
                       onChange={(e) => updateField('headlineSize', Number(e.target.value))}
                       className="w-24 accent-red-500"
                     />
-                    <span className="text-slate-300 font-mono">{project.headlineSize}</span>
+                    <span className="text-slate-300 font-mono w-6">{project.headlineSize}</span>
                   </div>
                 </div>
               </div>

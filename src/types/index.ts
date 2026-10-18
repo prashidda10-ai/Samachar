@@ -74,6 +74,8 @@ export interface NewsProject {
   categoryBadge: string;
   categoryBadgeColor: string; // red, orange, blue, dark, or custom hex
   categoryBadgeStyle: 'pill' | 'solid-rect' | 'underline' | 'tag' | 'neon-border';
+  badgeSize?: number; // px size for tagline/badge, default 14
+  badgeSingleLine?: boolean; // default true (keep tagline on 1 line)
   badgePosY?: number; // offset Y in px
   badgePosX?: number; // offset X in px
   
@@ -84,11 +86,13 @@ export interface NewsProject {
   headlineColor: string;
   headlineAlign: 'left' | 'center' | 'right';
   headlineTransform: 'uppercase' | 'none';
+  headlineSingleLine?: boolean; // lock headline to a single line (no wrap)
   headlinePosY?: number; // offset Y in px
   headlinePosX?: number; // offset X in px
 
   showSubheadline?: boolean;
   subheadline?: string;
+  subheadlineSize?: number; // px size for subheadline/tagline, default 13
   subheadlinePosY?: number;
   subheadlinePosX?: number;
 

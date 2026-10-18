@@ -56,21 +56,15 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="h-14 border-b border-slate-800 bg-slate-950 px-2 sm:px-3 md:px-5 flex items-center justify-between gap-2 select-none shrink-0 z-30">
-      {/* Zone 1: Brand Wordmark */}
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-red-600 to-rose-500 flex items-center justify-center font-black text-white text-base font-khand shadow-md shadow-red-500/20">
-          SM
-        </div>
-        <div className="flex flex-col">
-          <div className="flex items-center gap-1.5">
-            <span className="text-base font-black tracking-tight text-white font-outfit">
-              Samachar <span className="text-red-500">Maker</span>
-            </span>
-          </div>
-          <span className="text-[10px] text-slate-400 font-medium -mt-1 tracking-wider uppercase hidden sm:inline">
-            By Shubest Lab
-          </span>
-        </div>
+      {/* Zone 1: App Logo */}
+      <div className="flex items-center">
+        <img
+          src="/logo.svg"
+          alt="Samachar Maker Logo"
+          title="Samachar Maker — By Shubest Lab"
+          onClick={onReplaySplash}
+          className="w-10 h-10 rounded-xl shadow-lg shadow-red-600/25 hover:scale-105 active:scale-95 transition-transform cursor-pointer object-contain"
+        />
       </div>
 
       {/* Mobile Mode Switcher (Editor vs Live Preview) */}
@@ -99,18 +93,8 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       )}
 
-      {/* Zone 2: AI & Central Tools */}
+      {/* Zone 2: Central Tools */}
       <div className="flex items-center gap-1.5 md:gap-2">
-        {/* AI News Journalist Button */}
-        <button
-          onClick={onOpenAI}
-          className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-red-600/20 to-rose-600/20 hover:from-red-600/30 hover:to-rose-600/30 border border-red-500/40 text-red-400 hover:text-red-300 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer"
-          title="Open AI News Generator (Gemini 3.8 Flash)"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-red-400 animate-pulse" />
-          <span>AI News Writer</span>
-        </button>
-
         {/* PWA Install Button (always accessible) */}
         {canInstallPwa && (
           <button
@@ -181,24 +165,19 @@ export const Header: React.FC<HeaderProps> = ({
           <span>Export HD</span>
         </button>
 
-        {/* Google User Profile or Sign-in Button */}
+        {/* Google User Profile (Photo Only) or Sign-in Button */}
         {user ? (
           <div className="relative">
             <button
               onClick={() => setShowUserDropdown(!showUserDropdown)}
-              className="flex items-center gap-1.5 p-1 pl-2 bg-slate-900 hover:bg-slate-850 border border-slate-700 rounded-full text-xs font-semibold text-slate-200 transition-all cursor-pointer"
+              title={`${user.name} (${user.email})`}
+              className="w-8 h-8 rounded-full overflow-hidden bg-red-600 border-2 border-red-500/60 hover:border-white flex items-center justify-center text-white text-xs font-bold shadow-md transition-all hover:scale-105 active:scale-95 cursor-pointer"
             >
-              <span className="max-w-[80px] sm:max-w-[100px] truncate hidden sm:inline">
-                {user.name}
-              </span>
-              <div className="w-6 h-6 rounded-full overflow-hidden bg-red-600 flex items-center justify-center text-white text-[10px] font-bold">
-                {user.picture ? (
-                  <img src={user.picture} alt={user.name} className="w-full h-full object-cover" />
-                ) : (
-                  user.name.charAt(0)
-                )}
-              </div>
-              <ChevronDown className="w-3 h-3 text-slate-400 mr-0.5" />
+              {user.picture ? (
+                <img src={user.picture} alt={user.name} className="w-full h-full object-cover" />
+              ) : (
+                user.name.charAt(0).toUpperCase()
+              )}
             </button>
 
             {/* Dropdown */}

@@ -59,8 +59,13 @@ export function renderHighlightedText(text: string, defaultColorClass: string = 
         elements.push(
           <span
             key={`bg-hex-${match.index}`}
-            style={{ backgroundColor: hexColor, color: textColor }}
-            className="inline-block px-2 py-0.5 mx-0.5 rounded-md font-bold shadow-xs transition-all"
+            style={{
+              backgroundColor: hexColor,
+              color: textColor,
+              boxDecorationBreak: 'clone',
+              WebkitBoxDecorationBreak: 'clone'
+            }}
+            className="inline px-1.5 py-0.5 mx-0.5 rounded-md font-bold shadow-xs transition-all"
           >
             {content}
           </span>
@@ -100,7 +105,11 @@ export function renderHighlightedText(text: string, defaultColorClass: string = 
         elements.push(
           <span
             key={`bg-named-${match.index}`}
-            className={`inline-block px-1.5 py-0.5 mx-0.5 rounded-md font-bold ${bgClass}`}
+            style={{
+              boxDecorationBreak: 'clone',
+              WebkitBoxDecorationBreak: 'clone'
+            }}
+            className={`inline px-1.5 py-0.5 mx-0.5 rounded-md font-bold ${bgClass}`}
           >
             {content}
           </span>

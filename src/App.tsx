@@ -21,6 +21,7 @@ import { ShareModal } from './components/ShareModal';
 import { ExportModal } from './components/ExportModal';
 import { AuthModal } from './components/AuthModal';
 import { AINewsModal } from './components/AINewsModal';
+import { AIFloatingBubble } from './components/AIFloatingBubble';
 import { InstallModal } from './components/InstallModal';
 import { TRANSLATIONS } from './utils/translations';
 import {
@@ -260,18 +261,17 @@ export default function App() {
 
     return await exportElementAsVideo(canvasRef.current, {
       durationSeconds,
-      fps: 25,
+      fps: 30,
       onProgress
     });
   };
 
   const handleOpenExport = async () => {
+    setIsExportOpen(true);
     try {
       await prepareExportImage(2.5, 'png');
-      setIsExportOpen(true);
     } catch (e) {
-      console.error(e);
-      alert('Could not render image preview. Please try again.');
+      console.warn('Preview snapshot note:', e);
     }
   };
 
@@ -426,7 +426,7 @@ export default function App() {
             {/* FLOATING QUICK ACTIONS BAR */}
             <div className="flex items-center justify-center gap-2 mb-3 z-20 flex-wrap">
               {/* Quick Media Upload */}
-              <label className="cursor-pointer px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 text-xs font-bold text-white border border-slate-700/80 shadow-lg flex items-center gap-1.5 backdrop-blur-md transition-all active:scale-95">
+              <label className="cursor-pointer px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 text-xs font-bold text-white border border-slate-700/80 shadow-lg flex items-center gap-1.5 backdrop-blur-md transition-all hover-lift active:scale-95">
                 <Upload className="w-3.5 h-3.5 text-red-400" />
                 <span>Change Media</span>
                 <input
@@ -437,16 +437,28 @@ export default function App() {
                     const file = e.target.files?.[0];
                     if (file) {
                       const isVideo = file.type.startsWith('video/');
-                      const reader = new FileReader();
-                      reader.onload = () => {
+                      if (isVideo) {
+                        const objectUrl = URL.createObjectURL(file);
                         setProject((prev) => ({
                           ...prev,
-                          mediaUrl: reader.result as string,
-                          mediaType: isVideo ? 'video' : 'image'
+                          mediaUrl: objectUrl,
+                          mediaType: 'video',
+                          updatedAt: Date.now()
                         }));
-                        showToast(isVideo ? 'Video loaded with original high quality' : 'Photo loaded with original high quality');
-                      };
-                      reader.readAsDataURL(file);
+                        showToast('Full video loaded at 100% original quality!');
+                      } else {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          setProject((prev) => ({
+                            ...prev,
+                            mediaUrl: reader.result as string,
+                            mediaType: 'image',
+                            updatedAt: Date.now()
+                          }));
+                          showToast('Photo loaded with original high quality');
+                        };
+                        reader.readAsDataURL(file);
+                      }
                     }
                   }}
                 />
@@ -468,6 +480,28 @@ export default function App() {
                   </button>
                 ))}
               </div>
+
+              {/* Quick 1-Line Lock Toggle for Headline & Tagline */}
+              <button
+                onClick={() => {
+                  const nextState = !project.headlineSingleLine;
+                  setProject((prev) => ({
+                    ...prev,
+                    headlineSingleLine: nextState,
+                    badgeSingleLine: true
+                  }));
+                  showToast(nextState ? 'Headline & Tagline locked to 1 Single Line!' : 'Multi-line Headline enabled');
+                }}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold border shadow-lg flex items-center gap-1.5 backdrop-blur-md transition-all hover-lift active:scale-95 cursor-pointer ${
+                  project.headlineSingleLine
+                    ? 'bg-emerald-600/25 text-emerald-300 border-emerald-500/60'
+                    : 'bg-slate-900/90 hover:bg-slate-800 text-slate-200 border-slate-700/80'
+                }`}
+                title="Keep Headline and Tagline on 1 single line without wrapping"
+              >
+                <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{project.headlineSingleLine ? '✓ 1-Line Locked' : '1-Line Lock'}</span>
+              </button>
 
               {/* Quick Content Vertical Placement */}
               <div className="flex items-center p-0.5 bg-slate-900/90 rounded-full border border-slate-700/80 shadow-lg backdrop-blur-md">
@@ -506,22 +540,13 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Quick AI Generator Launch */}
-              <button
-                onClick={() => setIsAIOpen(true)}
-                className="px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 text-xs font-bold text-red-400 border border-red-500/50 shadow-lg flex items-center gap-1.5 backdrop-blur-md transition-all active:scale-95 cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>AI Writer</span>
-              </button>
-
-              {/* Quick HD Export */}
+              {/* Quick HD & Full MP4 Export */}
               <button
                 onClick={handleOpenExport}
-                className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-xs font-bold text-white shadow-lg shadow-red-600/30 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-xs font-bold text-white shadow-lg shadow-red-600/30 flex items-center gap-1.5 transition-all hover-lift active:scale-95 cursor-pointer animate-glow"
               >
                 <Film className="w-3.5 h-3.5" />
-                <span>Export HD</span>
+                <span>Export HD / MP4</span>
               </button>
             </div>
 
@@ -677,6 +702,8 @@ export default function App() {
         onRegenerate={prepareExportImage}
         onExportVideo={handleExportVideo}
         projectTitle={project.title}
+        mediaType={project.mediaType}
+        canvasElement={canvasRef.current}
         language="en"
       />
 
@@ -688,12 +715,21 @@ export default function App() {
         onNativeInstall={handleInstallPwa}
       />
 
+      {/* 7. DRAGGABLE & ANIMATED AI FLOATING BUBBLE */}
+      <AIFloatingBubble
+        project={project}
+        onUpdateProject={setProject}
+        onApplyAINews={handleApplyAINews}
+        onOpenFullAIModal={() => setIsAIOpen(true)}
+        onShowToast={showToast}
+      />
+
       {/* Mobile Floating Mode Toggle */}
       <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 md:hidden flex items-center shadow-2xl">
         {mobileTab === 'editor' ? (
           <button
             onClick={() => setMobileTab('preview')}
-            className="px-5 py-3 rounded-full bg-gradient-to-r from-red-600 to-rose-600 text-white font-extrabold text-xs shadow-2xl shadow-red-600/40 flex items-center gap-2 border border-white/25 active:scale-95 cursor-pointer transition-transform"
+            className="px-5 py-3 rounded-full bg-gradient-to-r from-red-600 to-rose-600 text-white font-extrabold text-xs shadow-2xl shadow-red-600/40 flex items-center gap-2 border border-white/25 active:scale-95 cursor-pointer transition-transform animate-glow"
           >
             <span>👁️ View Live News Card Preview</span>
           </button>
@@ -709,7 +745,7 @@ export default function App() {
 
       {/* Feedback Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-16 md:bottom-5 right-5 z-50 bg-slate-900 border border-red-500/40 text-white px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-semibold animate-in slide-in-from-bottom-3">
+        <div className="fixed bottom-20 md:bottom-24 right-5 z-50 bg-slate-900 border border-red-500/40 text-white px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-semibold animate-pop">
           <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>

@@ -1,12 +1,37 @@
 import { domToPng, domToJpeg, domToBlob } from 'modern-screenshot';
 import html2canvas from 'html2canvas';
 import confetti from 'canvas-confetti';
+import { embedActiveFontsIntoElement } from './fontEmbedder';
 
 export interface ExportOptions {
   format: 'png' | 'jpeg';
   quality: number; // 0.8 to 1.0
   pixelRatio: number; // 2 to 3 for Ultra HD
   fileName?: string;
+}
+
+/**
+ * Locks exact root container dimensions prior to DOM cloning without forcing nowrap
+ * on multi-line headlines, ensuring 100% of the headline and tagline underline remain visible.
+ */
+export function lockTextLinesForExport(element: HTMLElement): () => void {
+  const restoreFns: (() => void)[] = [];
+
+  const origWidth = element.style.width;
+  const origHeight = element.style.height;
+  const rect = element.getBoundingClientRect();
+  if (rect.width > 0 && rect.height > 0) {
+    element.style.width = `${Math.round(rect.width)}px`;
+    element.style.height = `${Math.round(rect.height)}px`;
+    restoreFns.push(() => {
+      element.style.width = origWidth;
+      element.style.height = origHeight;
+    });
+  }
+
+  return () => {
+    restoreFns.forEach((fn) => fn());
+  };
 }
 
 /**
@@ -69,15 +94,24 @@ export async function exportElementAsImage(
     }
   }
 
-  // 2. Temporarily swap video elements for full-res frame images for foreignObject capture
+  // 2. Embed active Google Fonts as base64 @font-face inside element so SVG foreignObject
+  // renders the exact font glyphs, full tagline underline, and complete headline without clipping
+  const removeEmbeddedFonts = await embedActiveFontsIntoElement(element);
+  const unlockText = lockTextLinesForExport(element);
   const unfreeze = freezeVideoFramesForCapture(element);
 
+  const cleanupAll = () => {
+    unfreeze();
+    unlockText();
+    removeEmbeddedFonts();
+  };
+
   try {
-    // 3. Primary Engine: modern-screenshot with font: false to avoid cross-origin cssRules SecurityError
+    // 3. Primary Engine: modern-screenshot with inline base64 fonts already injected inside element
     const config = {
       scale: pixelRatio,
       quality: options.quality || 1.0,
-      font: false as const, // Prevents SecurityError on Google Fonts cross-origin stylesheets
+      font: false as const,
       filter: (node: Node) => {
         if (node instanceof HTMLElement && node.classList?.contains('export-ignore')) {
           return false;
@@ -89,14 +123,14 @@ export async function exportElementAsImage(
     if (options.format === 'jpeg') {
       const result = await domToJpeg(element, config);
       if (result && result.length > 500) {
-        unfreeze();
+        cleanupAll();
         triggerConfetti();
         return result;
       }
     } else {
       const result = await domToPng(element, config);
       if (result && result.length > 500) {
-        unfreeze();
+        cleanupAll();
         triggerConfetti();
         return result;
       }
@@ -116,7 +150,7 @@ export async function exportElementAsImage(
       ignoreElements: (el) => el.classList.contains('export-ignore')
     });
 
-    unfreeze();
+    cleanupAll();
     const mimeType = options.format === 'jpeg' ? 'image/jpeg' : 'image/png';
     const dataUrl = canvas.toDataURL(mimeType, options.quality || 1.0);
     if (dataUrl && dataUrl.length > 500) {
@@ -124,19 +158,19 @@ export async function exportElementAsImage(
       return dataUrl;
     }
   } catch (h2cErr) {
-    unfreeze();
+    cleanupAll();
     console.warn('html2canvas fallback failed:', h2cErr);
   }
 
-  unfreeze();
+  cleanupAll();
   throw new Error('Could not generate high-resolution image export');
 }
 
 function triggerConfetti() {
   try {
     confetti({
-      particleCount: 50,
-      spread: 60,
+      particleCount: 55,
+      spread: 65,
       origin: { y: 0.8 }
     });
   } catch {
@@ -165,19 +199,41 @@ export async function getElementAsBlob(
     }
   }
 
+  const removeEmbeddedFonts = await embedActiveFontsIntoElement(element);
+  const unlockText = lockTextLinesForExport(element);
   const unfreeze = freezeVideoFramesForCapture(element);
+  const cleanupAll = () => {
+    unfreeze();
+    unlockText();
+    removeEmbeddedFonts();
+  };
+
   try {
     const blob = await domToBlob(element, {
       scale: options.pixelRatio || 2.5,
       font: false as const,
-      filter: (node) => !(node instanceof HTMLElement && node.classList?.contains('export-ignore'))
+      filter: (node: Node) => {
+        if (node instanceof HTMLElement && node.classList?.contains('export-ignore')) {
+          return false;
+        }
+        return true;
+      }
     });
-    unfreeze();
-    return blob;
+    cleanupAll();
+    if (blob) return blob;
   } catch {
-    unfreeze();
-    const dataUrl = await exportElementAsImage(element, { format: 'png', quality: 1.0, pixelRatio: options.pixelRatio || 2.5 });
+    cleanupAll();
+  }
+
+  try {
+    const dataUrl = await exportElementAsImage(element, {
+      format: 'png',
+      quality: 1.0,
+      pixelRatio: options.pixelRatio || 2.5
+    });
     const res = await fetch(dataUrl);
     return await res.blob();
+  } catch {
+    return null;
   }
 }

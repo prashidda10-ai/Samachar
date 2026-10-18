@@ -1,6 +1,7 @@
-import React, { forwardRef, useState, useRef } from 'react';
+import React, { forwardRef, useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { NewsProject } from '../types';
-import { renderHighlightedText } from '../utils/textParser';
+import { renderHighlightedText, stripHighlightTags } from '../utils/textParser';
+import { FONT_CLASS_TO_CSS_NAME } from '../utils/fontEmbedder';
 import { Volume2, VolumeX, Move, Edit2, Check } from 'lucide-react';
 
 interface CanvasPreviewProps {
@@ -20,6 +21,82 @@ export const CanvasPreview = forwardRef<HTMLDivElement, CanvasPreviewProps>(
     const dragStartRef = useRef<{ x: number; y: number; origPosX: number; origPosY: number }>({ x: 0, y: 0, origPosX: 0, origPosY: 0 });
     const containerRef = useRef<HTMLDivElement | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
+    const headlineTextRef = useRef<HTMLHeadingElement>(null);
+    const badgeTextRef = useRef<HTMLDivElement>(null);
+    const [effectiveHeadlineSize, setEffectiveHeadlineSize] = useState<number>(project.headlineSize || 32);
+    const [effectiveBadgeSize, setEffectiveBadgeSize] = useState<number>(project.badgeSize || 15);
+
+    // Measure text width using 2D canvas so single-line mode adjusts real font-size (never clipping via transform)
+    const recalculateSingleLineFit = () => {
+      const cardEl = containerRef.current;
+      const cardWidth = cardEl ? cardEl.clientWidth : 440;
+      const maxAvailableWidth = Math.max(200, cardWidth - 36);
+
+      const measureCanvas = document.createElement('canvas');
+      const ctx = measureCanvas.getContext('2d');
+
+      // 1. Headline size calculation
+      const targetHSize = project.headlineSize || 32;
+      if (project.headlineSingleLine && project.headline && ctx) {
+        const plainHeadline = stripHighlightTags(project.headline);
+        const displayHeadline =
+          project.headlineTransform === 'uppercase' ? plainHeadline.toUpperCase() : plainHeadline;
+        const fontName = FONT_CLASS_TO_CSS_NAME[project.headlineFont] || 'Khand';
+        ctx.font = `700 ${targetHSize}px "${fontName}", sans-serif`;
+        const measuredW = ctx.measureText(displayHeadline).width * 1.08;
+        if (measuredW > maxAvailableWidth && measuredW > 0) {
+          const fitted = Math.max(11, Math.floor(targetHSize * (maxAvailableWidth / measuredW)));
+          setEffectiveHeadlineSize(fitted);
+        } else {
+          setEffectiveHeadlineSize(targetHSize);
+        }
+      } else {
+        setEffectiveHeadlineSize(targetHSize);
+      }
+
+      // 2. Badge / Tagline size calculation
+      const targetBSize = project.badgeSize || (project.categoryBadgeStyle === 'underline' ? 15 : 14);
+      if (project.badgeSingleLine !== false && project.categoryBadge && ctx) {
+        const displayBadge = project.categoryBadge.toUpperCase();
+        ctx.font = `800 ${targetBSize}px "Khand", sans-serif`;
+        const measuredBadgeW = ctx.measureText(displayBadge).width * 1.15 + 24;
+        if (measuredBadgeW > maxAvailableWidth && measuredBadgeW > 0) {
+          const fittedB = Math.max(10, Math.floor(targetBSize * (maxAvailableWidth / measuredBadgeW)));
+          setEffectiveBadgeSize(fittedB);
+        } else {
+          setEffectiveBadgeSize(targetBSize);
+        }
+      } else {
+        setEffectiveBadgeSize(targetBSize);
+      }
+    };
+
+    useLayoutEffect(() => {
+      recalculateSingleLineFit();
+    }, [
+      project.headline,
+      project.headlineSize,
+      project.headlineFont,
+      project.headlineSingleLine,
+      project.headlineTransform,
+      project.categoryBadge,
+      project.badgeSize,
+      project.badgeSingleLine,
+      project.categoryBadgeStyle,
+      project.aspectRatio
+    ]);
+
+    useEffect(() => {
+      window.addEventListener('resize', recalculateSingleLineFit);
+      return () => window.removeEventListener('resize', recalculateSingleLineFit);
+    }, [
+      project.headline,
+      project.headlineSize,
+      project.headlineSingleLine,
+      project.categoryBadge,
+      project.badgeSize,
+      project.badgeSingleLine
+    ]);
 
     // Calculate aspect ratio CSS
     const getAspectRatioClass = () => {
@@ -204,7 +281,7 @@ export const CanvasPreview = forwardRef<HTMLDivElement, CanvasPreviewProps>(
         >
           {project.mediaUrl ? (
             project.mediaType === 'video' ? (
-              <div className="relative w-full h-full" onClick={toggleVideoPlay}>
+              <div data-media-element="true" className="relative w-full h-full" onClick={toggleVideoPlay}>
                 <video
                   ref={videoRef}
                   src={project.mediaUrl}
@@ -233,7 +310,7 @@ export const CanvasPreview = forwardRef<HTMLDivElement, CanvasPreviewProps>(
               </div>
             ) : project.secondaryMediaUrl && project.templateStyle === 'sharesanskar-split' ? (
               // Split Comparison Layout
-              <div className="grid grid-cols-2 w-full h-[65%] border-b-2 border-red-600/30">
+              <div data-media-element="true" className="grid grid-cols-2 w-full h-[65%] border-b-2 border-red-600/30">
                 <div className="relative h-full overflow-hidden border-r border-slate-700/50">
                   <img
                     src={project.mediaUrl}
@@ -256,6 +333,7 @@ export const CanvasPreview = forwardRef<HTMLDivElement, CanvasPreviewProps>(
             ) : (
               // Standard single photo
               <img
+                data-media-element="true"
                 src={project.mediaUrl}
                 alt="News Background"
                 crossOrigin={project.mediaUrl?.startsWith('data:') || project.mediaUrl?.startsWith('blob:') ? undefined : 'anonymous'}
@@ -271,7 +349,7 @@ export const CanvasPreview = forwardRef<HTMLDivElement, CanvasPreviewProps>(
             )
           ) : (
             // Texture fallback for text-only cards
-            <div className={`w-full h-full ${isLightTheme ? 'bg-slate-100' : 'bg-slate-950'}`}>
+            <div data-media-element="true" className={`w-full h-full ${isLightTheme ? 'bg-slate-100' : 'bg-slate-950'}`}>
               <div className="w-full h-full opacity-30 bg-[radial-gradient(#94a3b8_1px,transparent_1px)] [background-size:16px_16px]" />
             </div>
           )}
@@ -395,13 +473,13 @@ export const CanvasPreview = forwardRef<HTMLDivElement, CanvasPreviewProps>(
               : project.contentVerticalAlign === 'center'
               ? 'justify-center py-6'
               : 'justify-end pb-5'
-          } h-full px-5 pointer-events-none transition-all`}
+          } h-full px-4 pointer-events-none transition-all`}
         >
-          {/* CATEGORY / TOPIC BADGE / TAGLINE (Movable via Drag) */}
+          {/* CATEGORY / TOPIC BADGE / TAGLINE (Movable via Drag & Full Underline Protected) */}
           {project.showCategoryBadge !== false && project.categoryBadge && (
             <div
               onPointerDown={(e) => handlePointerDown(e, 'badge')}
-              className={`mb-3 flex group relative cursor-move pointer-events-auto transition-transform ${
+              className={`mb-2.5 flex group relative cursor-move pointer-events-auto transition-transform ${
                 project.headlineAlign === 'center'
                   ? 'justify-center'
                   : project.headlineAlign === 'right'
@@ -411,57 +489,126 @@ export const CanvasPreview = forwardRef<HTMLDivElement, CanvasPreviewProps>(
               style={{
                 transform: `translate(${project.badgePosX || 0}px, ${project.badgePosY || 0}px)`
               }}
-              title="Drag to move Category Tag"
+              title="Drag to move Tagline / Category Badge"
             >
-              <div className="relative inline-flex items-center group-hover:ring-1 group-hover:ring-red-400/50 rounded transition-all">
+              <div
+                ref={badgeTextRef}
+                data-export-text="true"
+                data-single-line={project.badgeSingleLine !== false ? 'true' : 'false'}
+                className={`relative inline-flex items-center group-hover:ring-1 group-hover:ring-red-400/50 rounded transition-all max-w-full ${
+                  project.badgeSingleLine !== false ? 'whitespace-nowrap' : ''
+                }`}
+              >
                 {project.categoryBadgeStyle === 'pill' && (
-                  <span className="px-4 py-1.5 rounded-xl text-sm md:text-base font-bold tracking-wide uppercase bg-red-600 text-white shadow-lg shadow-red-600/30 font-khand">
+                  <span
+                    style={{
+                      fontSize: `${effectiveBadgeSize}px`,
+                      backgroundColor: project.categoryBadgeColor || '#dc2626'
+                    }}
+                    className={`inline-block px-3.5 py-1 rounded-xl font-bold tracking-wide uppercase text-white shadow-lg shadow-red-600/30 font-khand ${
+                      project.badgeSingleLine !== false ? 'whitespace-nowrap' : ''
+                    }`}
+                  >
                     {project.categoryBadge}
                   </span>
                 )}
 
                 {project.categoryBadgeStyle === 'solid-rect' && (
-                  <span className="px-4 py-1.5 rounded-sm text-sm md:text-base font-extrabold tracking-wider uppercase bg-red-600 text-white shadow-md font-khand border-b-2 border-red-800">
+                  <span
+                    style={{
+                      fontSize: `${effectiveBadgeSize}px`,
+                      backgroundColor: project.categoryBadgeColor || '#dc2626'
+                    }}
+                    className={`inline-block px-3.5 py-1 rounded-sm font-extrabold tracking-wider uppercase text-white shadow-md font-khand border-b-2 border-black/30 ${
+                      project.badgeSingleLine !== false ? 'whitespace-nowrap' : ''
+                    }`}
+                  >
                     {project.categoryBadge}
                   </span>
                 )}
 
                 {project.categoryBadgeStyle === 'underline' && (
-                  <div className="inline-flex flex-col items-center">
-                    <span className="text-base md:text-lg font-black tracking-wider uppercase text-red-500 font-khand">
-                      {project.categoryBadge}
-                    </span>
-                    <div className="w-full h-1 bg-red-600 mt-1 rounded-full" />
-                  </div>
+                  <span
+                    style={{
+                      fontSize: `${effectiveBadgeSize}px`,
+                      color: project.categoryBadgeColor || '#ef4444',
+                      borderBottom: `3.5px solid ${project.categoryBadgeColor || '#dc2626'}`,
+                      paddingBottom: '2px'
+                    }}
+                    className={`inline-block font-black tracking-wider uppercase font-khand leading-tight ${
+                      project.badgeSingleLine !== false ? 'whitespace-nowrap' : ''
+                    }`}
+                  >
+                    {project.categoryBadge}
+                  </span>
                 )}
 
                 {project.categoryBadgeStyle === 'tag' && (
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                    <span className="text-sm font-black tracking-widest uppercase text-red-500 font-khand">
+                  <div className={`inline-flex items-center gap-2 ${project.badgeSingleLine !== false ? 'whitespace-nowrap' : ''}`}>
+                    <span
+                      style={{ backgroundColor: project.categoryBadgeColor || '#ef4444' }}
+                      className="w-2.5 h-2.5 rounded-full animate-pulse shrink-0"
+                    />
+                    <span
+                      style={{
+                        fontSize: `${effectiveBadgeSize}px`,
+                        color: project.categoryBadgeColor || '#ef4444'
+                      }}
+                      className="font-black tracking-widest uppercase font-khand"
+                    >
                       {project.categoryBadge}
                     </span>
                   </div>
                 )}
 
                 {project.categoryBadgeStyle === 'neon-border' && (
-                  <span className="px-3.5 py-1 rounded-md text-xs md:text-sm font-extrabold tracking-widest uppercase border border-red-500 text-red-400 bg-red-500/10 backdrop-blur-xs font-khand">
+                  <span
+                    style={{
+                      fontSize: `${effectiveBadgeSize}px`,
+                      borderColor: project.categoryBadgeColor || '#ef4444',
+                      color: project.categoryBadgeColor || '#f87171'
+                    }}
+                    className={`inline-block px-3.5 py-1 rounded-md font-extrabold tracking-widest uppercase border bg-red-500/10 backdrop-blur-xs font-khand ${
+                      project.badgeSingleLine !== false ? 'whitespace-nowrap' : ''
+                    }`}
+                  >
                     {project.categoryBadge}
                   </span>
                 )}
 
-                {/* Subtle move hint */}
-                <span className="export-ignore absolute -top-4 right-0 opacity-0 group-hover:opacity-100 text-[10px] bg-black/80 text-white px-1.5 py-0.5 rounded flex items-center gap-1 transition-opacity">
-                  <Move className="w-2.5 h-2.5" /> Move
-                </span>
+                {/* Subtle move & 1-line hint */}
+                <div className="export-ignore absolute -top-5 left-0 opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity z-30">
+                  <span className="text-[10px] bg-black/85 text-white px-1.5 py-0.5 rounded flex items-center gap-1 shadow">
+                    <Move className="w-2.5 h-2.5" /> Move
+                  </span>
+                  {onUpdateProject && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onUpdateProject({
+                          ...project,
+                          badgeSingleLine: project.badgeSingleLine === false ? true : false
+                        });
+                      }}
+                      className={`text-[10px] px-1.5 py-0.5 rounded font-bold cursor-pointer shadow ${
+                        project.badgeSingleLine !== false
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-slate-800 text-slate-300'
+                      }`}
+                    >
+                      {project.badgeSingleLine !== false ? '1-Line Locked' : 'Wrap On'}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
 
-          {/* SUBHEADLINE (Only if explicitly enabled and non-empty) */}
+          {/* SUBHEADLINE / SECONDARY TAGLINE (Only if explicitly enabled and non-empty) */}
           {project.showSubheadline && project.subheadline && (
             <div
-              className={`mb-2.5 flex transition-transform pointer-events-auto ${
+              className={`mb-2 flex transition-transform pointer-events-auto ${
                 project.headlineAlign === 'center'
                   ? 'justify-center'
                   : project.headlineAlign === 'right'
@@ -472,17 +619,22 @@ export const CanvasPreview = forwardRef<HTMLDivElement, CanvasPreviewProps>(
                 transform: `translate(${project.subheadlinePosX || 0}px, ${project.subheadlinePosY || 0}px)`
               }}
             >
-              <span className="px-3 py-1 bg-red-700 text-white text-xs md:text-sm font-extrabold tracking-widest uppercase rounded shadow font-khand">
+              <span
+                data-export-text="true"
+                data-single-line="true"
+                style={{ fontSize: `${project.subheadlineSize || 13}px` }}
+                className="inline-block px-3 py-1 bg-red-700 text-white font-extrabold tracking-widest uppercase rounded shadow font-khand whitespace-nowrap"
+              >
                 {project.subheadline}
               </span>
             </div>
           )}
 
-          {/* MAIN HEADLINE (Movable via Drag & Toggleable) */}
+          {/* MAIN HEADLINE (Movable via Drag & Full Visibility Guaranteed) */}
           {project.showHeadline !== false && project.headline && (
             <div
               onPointerDown={(e) => handlePointerDown(e, 'headline')}
-              className="relative group cursor-move pointer-events-auto"
+              className="relative group cursor-move pointer-events-auto w-full"
               style={{
                 transform: `translate(${project.headlinePosX || 0}px, ${project.headlinePosY || 0}px)`,
                 transition: draggingElement === 'headline' ? 'none' : 'transform 0.12s ease'
@@ -490,15 +642,20 @@ export const CanvasPreview = forwardRef<HTMLDivElement, CanvasPreviewProps>(
               title="Drag to move Headline"
             >
               <h2
-                className={`font-bold leading-tight mb-2.5 tracking-tight ${project.headlineFont} ${
+                ref={headlineTextRef}
+                data-export-text="true"
+                data-single-line={project.headlineSingleLine ? 'true' : 'false'}
+                className={`font-bold leading-[1.2] mb-2.5 tracking-tight w-full ${project.headlineFont} ${
                   project.headlineAlign === 'center'
                     ? 'text-center'
                     : project.headlineAlign === 'right'
                     ? 'text-right'
                     : 'text-left'
-                } ${project.headlineTransform === 'uppercase' ? 'uppercase' : ''} group-hover:outline-dashed group-hover:outline-1 group-hover:outline-red-400/60 rounded px-1`}
+                } ${project.headlineTransform === 'uppercase' ? 'uppercase' : ''} ${
+                  project.headlineSingleLine ? 'whitespace-nowrap' : 'whitespace-normal break-words'
+                } group-hover:outline-dashed group-hover:outline-1 group-hover:outline-red-400/60 rounded`}
                 style={{
-                  fontSize: `${project.headlineSize}px`,
+                  fontSize: `${effectiveHeadlineSize}px`,
                   color: project.headlineColor,
                   textShadow: isDarkTheme
                     ? '0 2px 4px rgba(0,0,0,0.8), 0 0 12px rgba(0,0,0,0.5)'
@@ -510,10 +667,31 @@ export const CanvasPreview = forwardRef<HTMLDivElement, CanvasPreviewProps>(
                   isDarkTheme ? 'text-white' : 'text-slate-900'
                 )}
               </h2>
-              {/* Move Badge Indicator */}
-              <span className="export-ignore absolute -top-5 left-2 opacity-0 group-hover:opacity-100 text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded flex items-center gap-1 transition-opacity pointer-events-none shadow">
-                <Move className="w-2.5 h-2.5" /> Move Headline
-              </span>
+              {/* Move & Single-Line Toggle Indicator */}
+              <div className="export-ignore absolute -top-6 left-1 opacity-0 group-hover:opacity-100 flex items-center gap-1.5 transition-opacity z-30">
+                <span className="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded flex items-center gap-1 pointer-events-none shadow">
+                  <Move className="w-2.5 h-2.5" /> Move Headline
+                </span>
+                {onUpdateProject && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onUpdateProject({
+                        ...project,
+                        headlineSingleLine: !project.headlineSingleLine
+                      });
+                    }}
+                    className={`text-[10px] px-2 py-0.5 rounded font-bold cursor-pointer shadow transition-colors ${
+                      project.headlineSingleLine
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-slate-900/90 text-slate-200 border border-slate-700 hover:bg-slate-800'
+                    }`}
+                  >
+                    {project.headlineSingleLine ? '✓ 1-Line Locked' : 'Lock to 1 Line'}
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
