@@ -39,7 +39,12 @@ import {
   Film,
   Download,
   Sparkles,
-  DownloadCloud
+  DownloadCloud,
+  Eye,
+  Sliders,
+  FolderOpen,
+  Share2,
+  X
 } from 'lucide-react';
 
 export default function App() {
@@ -69,6 +74,7 @@ export default function App() {
 
   // Quick Move Target for canvas dock
   const [quickMoveTarget, setQuickMoveTarget] = useState<'headline' | 'footer' | 'badge' | 'body' | 'media'>('headline');
+  const [showMobileNudge, setShowMobileNudge] = useState(false);
 
   // Feedback Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -422,11 +428,11 @@ export default function App() {
           </div>
 
           {/* Canvas Scroll Area */}
-          <div className="flex-1 overflow-auto flex flex-col items-center justify-center p-3 md:p-6">
-            {/* FLOATING QUICK ACTIONS BAR */}
-            <div className="flex items-center justify-center gap-2 mb-3 z-20 flex-wrap">
+          <div className="flex-1 overflow-auto flex flex-col items-center justify-start md:justify-center p-2.5 pb-24 md:p-6">
+            {/* FLOATING QUICK ACTIONS BAR - Horizontal swipeable pill strip on Mobile, Wrapped on Desktop */}
+            <div className="flex items-center justify-start md:justify-center gap-2 mb-2.5 md:mb-3 z-20 w-full md:w-auto overflow-x-auto md:overflow-visible flex-nowrap md:flex-wrap pb-1 md:pb-0 px-1 shrink-0">
               {/* Quick Media Upload */}
-              <label className="cursor-pointer px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 text-xs font-bold text-white border border-slate-700/80 shadow-lg flex items-center gap-1.5 backdrop-blur-md transition-all hover-lift active:scale-95">
+              <label className="cursor-pointer shrink-0 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 text-xs font-bold text-white border border-slate-700/80 shadow-lg flex items-center gap-1.5 backdrop-blur-md transition-all hover-lift active:scale-95">
                 <Upload className="w-3.5 h-3.5 text-red-400" />
                 <span>Change Media</span>
                 <input
@@ -465,7 +471,7 @@ export default function App() {
               </label>
 
               {/* Quick Aspect Ratio */}
-              <div className="flex items-center p-0.5 bg-slate-900/90 rounded-full border border-slate-700/80 shadow-lg backdrop-blur-md">
+              <div className="flex items-center shrink-0 p-0.5 bg-slate-900/90 rounded-full border border-slate-700/80 shadow-lg backdrop-blur-md">
                 {(['4:5', '1:1', '9:16'] as const).map((ratio) => (
                   <button
                     key={ratio}
@@ -492,7 +498,7 @@ export default function App() {
                   }));
                   showToast(nextState ? 'Headline & Tagline locked to 1 Single Line!' : 'Multi-line Headline enabled');
                 }}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold border shadow-lg flex items-center gap-1.5 backdrop-blur-md transition-all hover-lift active:scale-95 cursor-pointer ${
+                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold border shadow-lg flex items-center gap-1.5 backdrop-blur-md transition-all hover-lift active:scale-95 cursor-pointer ${
                   project.headlineSingleLine
                     ? 'bg-emerald-600/25 text-emerald-300 border-emerald-500/60'
                     : 'bg-slate-900/90 hover:bg-slate-800 text-slate-200 border-slate-700/80'
@@ -504,7 +510,7 @@ export default function App() {
               </button>
 
               {/* Quick Content Vertical Placement */}
-              <div className="flex items-center p-0.5 bg-slate-900/90 rounded-full border border-slate-700/80 shadow-lg backdrop-blur-md">
+              <div className="flex items-center shrink-0 p-0.5 bg-slate-900/90 rounded-full border border-slate-700/80 shadow-lg backdrop-blur-md">
                 <button
                   onClick={() => setProject((prev) => ({ ...prev, contentVerticalAlign: 'top', headlinePosY: 0, badgePosY: 0 }))}
                   title="Move text to Top"
@@ -543,7 +549,7 @@ export default function App() {
               {/* Quick HD & Full MP4 Export */}
               <button
                 onClick={handleOpenExport}
-                className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-xs font-bold text-white shadow-lg shadow-red-600/30 flex items-center gap-1.5 transition-all hover-lift active:scale-95 cursor-pointer animate-glow"
+                className="shrink-0 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-xs font-bold text-white shadow-lg shadow-red-600/30 flex items-center gap-1.5 transition-all hover-lift active:scale-95 cursor-pointer animate-glow"
               >
                 <Film className="w-3.5 h-3.5" />
                 <span>Export HD / MP4</span>
@@ -566,19 +572,30 @@ export default function App() {
               />
             </div>
 
-            {/* FLOATING QUICK MOVE & NUDGE CONTROLLER */}
-            <div className="mt-4 z-20 flex flex-col items-center gap-1.5 p-2 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 rounded-2xl shadow-2xl max-w-[460px] md:max-w-[480px] w-full">
+            {/* FLOATING QUICK MOVE & NUDGE CONTROLLER (Always visible on Desktop, Toggleable Drawer on Mobile) */}
+            <div className={`mt-3 md:mt-4 z-20 flex-col items-center gap-1.5 p-2.5 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 rounded-2xl shadow-2xl max-w-[460px] md:max-w-[480px] w-full animate-pop ${
+              showMobileNudge ? 'flex' : 'hidden md:flex'
+            }`}>
               <div className="flex items-center justify-between w-full px-1 text-[11px]">
                 <div className="flex items-center gap-1.5 font-bold text-slate-200">
                   <Move className="w-3.5 h-3.5 text-red-400" />
                   <span>Move & Nudge Controls:</span>
                 </div>
-                <div className="text-red-400 font-mono text-[10px] font-bold">
-                  {quickMoveTarget === 'headline' && `X: ${project.headlinePosX || 0}px · Y: ${project.headlinePosY || 0}px`}
-                  {quickMoveTarget === 'footer' && `X: ${project.footerPosX || 0}px · Y: ${project.footerPosY || 0}px`}
-                  {quickMoveTarget === 'badge' && `X: ${project.badgePosX || 0}px · Y: ${project.badgePosY || 0}px`}
-                  {quickMoveTarget === 'body' && `X: ${project.bodyPosX || 0}px · Y: ${project.bodyPosY || 0}px`}
-                  {quickMoveTarget === 'media' && `X: ${project.mediaPosX ?? 50}% · Y: ${project.mediaPosY ?? 50}%`}
+                <div className="flex items-center gap-2">
+                  <div className="text-red-400 font-mono text-[10px] font-bold">
+                    {quickMoveTarget === 'headline' && `X: ${project.headlinePosX || 0}px · Y: ${project.headlinePosY || 0}px`}
+                    {quickMoveTarget === 'footer' && `X: ${project.footerPosX || 0}px · Y: ${project.footerPosY || 0}px`}
+                    {quickMoveTarget === 'badge' && `X: ${project.badgePosX || 0}px · Y: ${project.badgePosY || 0}px`}
+                    {quickMoveTarget === 'body' && `X: ${project.bodyPosX || 0}px · Y: ${project.bodyPosY || 0}px`}
+                    {quickMoveTarget === 'media' && `X: ${project.mediaPosX ?? 50}% · Y: ${project.mediaPosY ?? 50}%`}
+                  </div>
+                  <button
+                    onClick={() => setShowMobileNudge(false)}
+                    className="md:hidden p-0.5 text-slate-400 hover:text-white rounded-md"
+                    title="Hide Move Controls"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
 
@@ -724,24 +741,103 @@ export default function App() {
         onShowToast={showToast}
       />
 
-      {/* Mobile Floating Mode Toggle */}
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 md:hidden flex items-center shadow-2xl">
-        {mobileTab === 'editor' ? (
+      {/* PRO MOBILE BOTTOM NAVIGATION DOCK (Replaces top header Edit/Preview buttons on mobile) */}
+      <nav className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-slate-950/95 backdrop-blur-2xl border-t border-slate-800/90 px-2 pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.6)]">
+        <div className="h-16 max-w-md mx-auto grid grid-cols-5 items-center">
+          {/* 1. Live Preview Mode */}
           <button
             onClick={() => setMobileTab('preview')}
-            className="px-5 py-3 rounded-full bg-gradient-to-r from-red-600 to-rose-600 text-white font-extrabold text-xs shadow-2xl shadow-red-600/40 flex items-center gap-2 border border-white/25 active:scale-95 cursor-pointer transition-transform animate-glow"
+            className={`flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl transition-all cursor-pointer ${
+              mobileTab === 'preview' && !showMobileNudge
+                ? 'text-red-400 font-extrabold scale-105'
+                : 'text-slate-400 hover:text-slate-200 font-semibold'
+            }`}
           >
-            <span>👁️ View Live News Card Preview</span>
+            <div className={`p-1.5 rounded-xl transition-all ${
+              mobileTab === 'preview' && !showMobileNudge
+                ? 'bg-red-500/15 border border-red-500/30 shadow-sm shadow-red-500/20'
+                : ''
+            }`}>
+              <Eye className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] tracking-tight">Preview</span>
           </button>
-        ) : (
+
+          {/* 2. Edit Studio Mode */}
           <button
-            onClick={() => setMobileTab('editor')}
-            className="px-5 py-3 rounded-full bg-slate-900/95 text-white font-extrabold text-xs shadow-2xl shadow-black/80 flex items-center gap-2 border border-red-500/50 active:scale-95 backdrop-blur-md cursor-pointer transition-transform"
+            onClick={() => {
+              setMobileTab('editor');
+              setShowMobileNudge(false);
+            }}
+            className={`flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl transition-all cursor-pointer ${
+              mobileTab === 'editor'
+                ? 'text-red-400 font-extrabold scale-105'
+                : 'text-slate-400 hover:text-slate-200 font-semibold'
+            }`}
           >
-            <span>✏️ Open Editor Controls</span>
+            <div className={`p-1.5 rounded-xl transition-all ${
+              mobileTab === 'editor'
+                ? 'bg-red-500/15 border border-red-500/30 shadow-sm shadow-red-500/20'
+                : ''
+            }`}>
+              <Sliders className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] tracking-tight">Edit Studio</span>
           </button>
-        )}
-      </div>
+
+          {/* 3. Center Floating Export HD / MP4 Action */}
+          <div className="flex flex-col items-center justify-center -mt-5">
+            <button
+              onClick={handleOpenExport}
+              className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-red-600 via-rose-600 to-amber-500 text-white shadow-xl shadow-red-600/40 border-2 border-slate-950 flex items-center justify-center active:scale-95 transition-transform cursor-pointer animate-glow"
+              title="Export HD Image or Full MP4 Video"
+            >
+              <Download className="w-5 h-5" />
+            </button>
+            <span className="text-[10px] font-extrabold text-white mt-0.5 tracking-tight">
+              Export
+            </span>
+          </div>
+
+          {/* 4. Move / Nudge Drawer Toggle */}
+          <button
+            onClick={() => {
+              setMobileTab('preview');
+              setShowMobileNudge((prev) => !prev);
+            }}
+            className={`flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl transition-all cursor-pointer ${
+              mobileTab === 'preview' && showMobileNudge
+                ? 'text-red-400 font-extrabold scale-105'
+                : 'text-slate-400 hover:text-slate-200 font-semibold'
+            }`}
+          >
+            <div className={`p-1.5 rounded-xl transition-all ${
+              mobileTab === 'preview' && showMobileNudge
+                ? 'bg-red-500/15 border border-red-500/30 shadow-sm shadow-red-500/20'
+                : ''
+            }`}>
+              <Move className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] tracking-tight">Position</span>
+          </button>
+
+          {/* 5. Saved Projects / Share */}
+          <button
+            onClick={handleOpenProjects}
+            className="flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl text-slate-400 hover:text-slate-200 font-semibold transition-all cursor-pointer relative"
+          >
+            <div className="p-1.5 rounded-xl relative">
+              <FolderOpen className="w-4 h-4" />
+              {savedProjects.length > 0 && (
+                <span className="absolute -top-0.5 -right-1 px-1 min-w-[14px] h-[14px] rounded-full bg-red-600 text-white text-[9px] font-bold flex items-center justify-center">
+                  {savedProjects.length}
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] tracking-tight">Saved</span>
+          </button>
+        </div>
+      </nav>
 
       {/* Feedback Toast Notification */}
       {toastMessage && (

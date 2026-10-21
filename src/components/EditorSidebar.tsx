@@ -192,58 +192,58 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
   return (
     <div className="flex flex-col h-full bg-slate-900 border-r border-slate-800 text-slate-200">
       {/* STREAMLINED 4-TAB NAVIGATION */}
-      <div className="grid grid-cols-4 p-2 gap-1.5 border-b border-slate-800 bg-slate-950/60 select-none">
+      <div className="grid grid-cols-4 p-2 gap-1.5 border-b border-slate-800 bg-slate-950/80 select-none shrink-0">
         <button
           onClick={() => setActiveTab('templates')}
-          className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-bold transition-all ${
+          className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-2 sm:py-2.5 px-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'templates'
-              ? 'bg-red-600 text-white shadow-md shadow-red-600/25 ring-1 ring-red-400'
+              ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-md shadow-red-600/25 ring-1 ring-red-400'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
           }`}
         >
           <LayoutTemplate className="w-4 h-4 shrink-0" />
-          <span>{t.tabTemplates}</span>
+          <span className="truncate">{t.tabTemplates}</span>
         </button>
 
         <button
           onClick={() => setActiveTab('content')}
-          className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-bold transition-all ${
+          className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-2 sm:py-2.5 px-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'content'
-              ? 'bg-red-600 text-white shadow-md shadow-red-600/25 ring-1 ring-red-400'
+              ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-md shadow-red-600/25 ring-1 ring-red-400'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
           }`}
         >
           <Type className="w-4 h-4 shrink-0" />
-          <span>{t.tabContent}</span>
+          <span className="truncate">{t.tabContent}</span>
         </button>
 
         <button
           onClick={() => setActiveTab('media')}
-          className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-bold transition-all ${
+          className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-2 sm:py-2.5 px-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'media'
-              ? 'bg-red-600 text-white shadow-md shadow-red-600/25 ring-1 ring-red-400'
+              ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-md shadow-red-600/25 ring-1 ring-red-400'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
           }`}
         >
           <ImageIcon className="w-4 h-4 shrink-0" />
-          <span>{t.tabMedia}</span>
+          <span className="truncate">{t.tabMedia}</span>
         </button>
 
         <button
           onClick={() => setActiveTab('branding')}
-          className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-bold transition-all ${
+          className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-2 sm:py-2.5 px-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'branding'
-              ? 'bg-red-600 text-white shadow-md shadow-red-600/25 ring-1 ring-red-400'
+              ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-md shadow-red-600/25 ring-1 ring-red-400'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
           }`}
         >
           <ShieldCheck className="w-4 h-4 shrink-0" />
-          <span>{t.tabBranding}</span>
+          <span className="truncate">{t.tabBranding}</span>
         </button>
       </div>
 
       {/* TAB CONTENT AREA */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      <div className="flex-1 overflow-y-auto p-3.5 sm:p-4 pb-24 md:pb-6 space-y-5">
         {/* TAB 1: TEMPLATES */}
         {activeTab === 'templates' && (
           <div className="space-y-5">

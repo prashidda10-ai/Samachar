@@ -185,7 +185,7 @@ export const AIFloatingBubble: React.FC<AIFloatingBubbleProps> = ({
       style={{
         transform: `translate3d(${offset.x}px, ${offset.y}px, 0)`
       }}
-      className="fixed bottom-16 md:bottom-6 right-4 md:right-6 z-40 flex flex-col items-end select-none"
+      className="fixed bottom-20 md:bottom-6 right-3.5 md:right-6 z-40 flex flex-col items-end select-none"
     >
       {/* EXPANDED FLOATING AI BUBBLE HUB */}
       {isExpanded && (

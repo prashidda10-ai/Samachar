@@ -56,54 +56,36 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="h-14 border-b border-slate-800 bg-slate-950 px-2 sm:px-3 md:px-5 flex items-center justify-between gap-2 select-none shrink-0 z-30">
-      {/* Zone 1: App Logo */}
-      <div className="flex items-center">
+      {/* Zone 1: App Logo & Mobile Brand Title */}
+      <div className="flex items-center gap-2.5">
         <img
           src="/logo.svg"
           alt="Samachar Maker Logo"
           title="Samachar Maker — By Shubest Lab"
           onClick={onReplaySplash}
-          className="w-10 h-10 rounded-xl shadow-lg shadow-red-600/25 hover:scale-105 active:scale-95 transition-transform cursor-pointer object-contain"
+          className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl shadow-lg shadow-red-600/25 hover:scale-105 active:scale-95 transition-transform cursor-pointer object-contain shrink-0"
         />
+        <div className="flex flex-col md:hidden">
+          <span className="text-xs font-black tracking-tight text-white leading-none">
+            Samachar <span className="text-red-500">Maker</span>
+          </span>
+          <span className="text-[9px] text-emerald-400 font-bold tracking-wider uppercase mt-0.5 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Pro Studio
+          </span>
+        </div>
       </div>
 
-      {/* Mobile Mode Switcher (Editor vs Live Preview) */}
-      {onToggleMobileTab && (
-        <div className="flex md:hidden items-center p-0.5 bg-slate-900 border border-slate-700 rounded-xl shadow-inner">
-          <button
-            onClick={() => onToggleMobileTab('editor')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-              mobileTab === 'editor'
-                ? 'bg-red-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            ✏️ Edit
-          </button>
-          <button
-            onClick={() => onToggleMobileTab('preview')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-              mobileTab === 'preview'
-                ? 'bg-red-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            👁️ Preview
-          </button>
-        </div>
-      )}
-
       {/* Zone 2: Central Tools */}
-      <div className="flex items-center gap-1.5 md:gap-2">
+      <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2">
         {/* PWA Install Button (always accessible) */}
         {canInstallPwa && (
           <button
             onClick={onInstallPwa}
-            className="flex px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-emerald-400 hover:text-emerald-300 font-bold text-xs items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+            className="flex px-2 sm:px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-emerald-400 hover:text-emerald-300 font-bold text-xs items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
             title="Install App directly on your Device (PWA)"
           >
             <DownloadCloud className="w-3.5 h-3.5" />
-            <span className="hidden xs:inline sm:inline">Install</span>
+            <span className="hidden sm:inline">Install</span>
           </button>
         )}
 
@@ -120,7 +102,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={onReplaySplash}
           title="Replay Studio Splash Intro"
-          className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-900 border border-transparent hover:border-slate-800 transition-colors"
+          className="hidden sm:flex p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-900 border border-transparent hover:border-slate-800 transition-colors cursor-pointer"
         >
           <RotateCcw className="w-4 h-4" />
         </button>
@@ -129,7 +111,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={onToggleTheme}
           title="Toggle Dark/Light Mode"
-          className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-900 border border-transparent hover:border-slate-800 transition-colors"
+          className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-900 border border-transparent hover:border-slate-800 transition-colors cursor-pointer"
         >
           {appTheme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-400" />}
         </button>
@@ -140,7 +122,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Save Current Project */}
         <button
           onClick={onSaveCurrent}
-          className="px-2.5 md:px-3 py-1.5 text-xs font-semibold text-slate-200 bg-slate-900 hover:bg-slate-800 border border-slate-700/80 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
+          className="p-2 sm:px-2.5 md:px-3 sm:py-1.5 text-xs font-semibold text-slate-200 bg-slate-900 hover:bg-slate-800 border border-slate-700/80 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer active:scale-95"
           title="Save project (Account required)"
         >
           <Save className="w-3.5 h-3.5 text-emerald-400" />
@@ -150,7 +132,8 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Share Button */}
         <button
           onClick={onOpenShare}
-          className="px-2.5 md:px-3 py-1.5 text-xs font-semibold text-slate-200 bg-slate-900 hover:bg-slate-800 border border-slate-700/80 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
+          className="p-2 sm:px-2.5 md:px-3 sm:py-1.5 text-xs font-semibold text-slate-200 bg-slate-900 hover:bg-slate-800 border border-slate-700/80 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer active:scale-95"
+          title="Share card"
         >
           <Share2 className="w-3.5 h-3.5 text-sky-400" />
           <span className="hidden sm:inline">Share</span>
@@ -159,7 +142,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Export Studio */}
         <button
           onClick={onOpenExport}
-          className="px-3 md:px-3.5 py-1.5 text-xs font-bold text-white bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 rounded-xl shadow-md shadow-red-600/20 transition-all flex items-center gap-1.5 active:scale-95 whitespace-nowrap cursor-pointer"
+          className="hidden sm:flex px-3 md:px-3.5 py-1.5 text-xs font-bold text-white bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 rounded-xl shadow-md shadow-red-600/20 transition-all items-center gap-1.5 active:scale-95 whitespace-nowrap cursor-pointer"
         >
           <Download className="w-3.5 h-3.5" />
           <span>Export HD</span>
